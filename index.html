@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PokeTeam Builder</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles/style.css" />
+</head>
+<body>
+  <div class="noise"></div>
+
+  <header class="header">
+    <div class="header-inner">
+      <div class="logo">
+        <span class="logo-icon">◈</span>
+        <span class="logo-text">POKETEAM<span class="logo-accent">.BUILD</span></span>
+      </div>
+      <nav class="nav">
+        <a href="#" class="nav-link active">Teambuilder</a>
+        <a href="#" class="nav-link disabled">Batalha</a>
+        <a href="#" class="nav-link disabled">Tier List</a>
+        <a href="#" class="nav-link disabled">Meta</a>
+      </nav>
+      <div class="format-selector">
+        <label class="format-label">Formato</label>
+        <select id="format-select">
+          <option value="OU">Gen 9 OU</option>
+          <option value="VGC">VGC 2025</option>
+          <option value="UU">UU</option>
+          <option value="NU">NU</option>
+          <option value="Ubers">Ubers</option>
+          <option value="LC">Little Cup</option>
+        </select>
+      </div>
+    </div>
+  </header>
+
+  <main class="main">
+    <!-- Search Panel -->
+    <section class="search-panel">
+      <div class="search-wrap">
+        <input type="text" id="search-input" class="search-input" placeholder="Buscar Pokémon..." autocomplete="off" />
+        <button id="search-btn" class="search-btn">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="6.5" cy="6.5" r="5" stroke="currentColor" stroke-width="1.5"/><path d="M10.5 10.5L14 14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        </button>
+      </div>
+      <div id="search-results" class="search-results hidden"></div>
+    </section>
+
+    <!-- Team Slots -->
+    <section class="team-section">
+      <div class="section-header">
+        <h2 class="section-title">MEU TIME</h2>
+        <span id="team-count-badge" class="count-badge">0 / 6</span>
+        <div class="team-actions">
+          <button id="export-btn" class="action-btn" title="Exportar para Showdown">↗ Showdown</button>
+          <button id="clear-btn" class="action-btn danger" title="Limpar time">✕ Limpar</button>
+        </div>
+      </div>
+      <div id="team-grid" class="team-grid">
+        <!-- Slots renderizados via JS -->
+      </div>
+    </section>
+
+    <!-- Analysis Panel -->
+    <section class="analysis-section" id="analysis-section">
+      <div class="analysis-grid">
+
+        <!-- Cobertura ofensiva -->
+        <div class="analysis-card" id="offensive-card">
+          <h3 class="analysis-title">Cobertura ofensiva</h3>
+          <p class="analysis-sub">Tipos que seu time consegue acertar em super-efetivo</p>
+          <div id="offensive-chart" class="type-chart"></div>
+        </div>
+
+        <!-- Fraquezas defensivas -->
+        <div class="analysis-card" id="defensive-card">
+          <h3 class="analysis-title">Fraquezas defensivas</h3>
+          <p class="analysis-sub">Tipos que ameaçam seu time</p>
+          <div id="defensive-chart" class="type-chart"></div>
+        </div>
+
+        <!-- Resistências -->
+        <div class="analysis-card" id="resist-card">
+          <h3 class="analysis-title">Resistências</h3>
+          <p class="analysis-sub">Tipos que seu time bloqueia</p>
+          <div id="resist-chart" class="type-chart"></div>
+        </div>
+
+        <!-- Alertas e dicas -->
+        <div class="analysis-card" id="tips-card">
+          <h3 class="analysis-title">Diagnóstico</h3>
+          <p class="analysis-sub">Pontos fortes e fracos do time</p>
+          <div id="tips-list" class="tips-list"></div>
+        </div>
+
+      </div>
+
+      <!-- Stats overview do time -->
+      <div class="stats-overview" id="stats-overview">
+        <h3 class="section-title">STATS DO TIME</h3>
+        <div id="stats-grid" class="stats-grid"></div>
+      </div>
+
+      <!-- Export modal -->
+      <div id="export-modal" class="modal hidden">
+        <div class="modal-box">
+          <div class="modal-header">
+            <h3>Exportar para Showdown</h3>
+            <button class="modal-close" id="modal-close">✕</button>
+          </div>
+          <textarea id="export-text" class="export-textarea" readonly></textarea>
+          <button id="copy-btn" class="copy-btn">Copiar</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Pokemon Detail Modal -->
+  <div id="poke-modal" class="modal hidden">
+    <div class="modal-box poke-modal-box">
+      <button class="modal-close" id="poke-modal-close">✕</button>
+      <div id="poke-modal-content"></div>
+    </div>
+  </div>
+
+  <script src="scripts/data.js"></script>
+  <script src="scripts/teambuilder.js"></script>
+</body>
+</html>
