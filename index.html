@@ -26,19 +26,18 @@
       <div class="format-selector">
         <label class="format-label">Formato</label>
         <select id="format-select">
-          <option value="OU">Gen 9 OU</option>
-          <option value="VGC">VGC 2025</option>
-          <option value="UU">UU</option>
-          <option value="NU">NU</option>
-          <option value="Ubers">Ubers</option>
-          <option value="LC">Little Cup</option>
+          <option value="gen9ou">Gen 9 OU</option>
+          <option value="gen9vgc2025regg">VGC 2025</option>
+          <option value="gen9uu">UU</option>
+          <option value="gen9nu">NU</option>
+          <option value="gen9ubers">Ubers</option>
+          <option value="gen9lc">Little Cup</option>
         </select>
       </div>
     </div>
   </header>
 
   <main class="main">
-    <!-- Search Panel -->
     <section class="search-panel">
       <div class="search-wrap">
         <input type="text" id="search-input" class="search-input" placeholder="Buscar Pokémon..." autocomplete="off" />
@@ -49,7 +48,6 @@
       <div id="search-results" class="search-results hidden"></div>
     </section>
 
-    <!-- Team Slots -->
     <section class="team-section">
       <div class="section-header">
         <h2 class="section-title">MEU TIME</h2>
@@ -59,52 +57,37 @@
           <button id="clear-btn" class="action-btn danger" title="Limpar time">✕ Limpar</button>
         </div>
       </div>
-      <div id="team-grid" class="team-grid">
-        <!-- Slots renderizados via JS -->
-      </div>
+      <div id="team-grid" class="team-grid"></div>
     </section>
 
-    <!-- Analysis Panel -->
     <section class="analysis-section" id="analysis-section">
       <div class="analysis-grid">
-
-        <!-- Cobertura ofensiva -->
         <div class="analysis-card" id="offensive-card">
           <h3 class="analysis-title">Cobertura ofensiva</h3>
           <p class="analysis-sub">Tipos que seu time consegue acertar em super-efetivo</p>
           <div id="offensive-chart" class="type-chart"></div>
         </div>
-
-        <!-- Fraquezas defensivas -->
         <div class="analysis-card" id="defensive-card">
           <h3 class="analysis-title">Fraquezas defensivas</h3>
           <p class="analysis-sub">Tipos que ameaçam seu time</p>
           <div id="defensive-chart" class="type-chart"></div>
         </div>
-
-        <!-- Resistências -->
         <div class="analysis-card" id="resist-card">
           <h3 class="analysis-title">Resistências</h3>
           <p class="analysis-sub">Tipos que seu time bloqueia</p>
           <div id="resist-chart" class="type-chart"></div>
         </div>
-
-        <!-- Alertas e dicas -->
         <div class="analysis-card" id="tips-card">
           <h3 class="analysis-title">Diagnóstico</h3>
           <p class="analysis-sub">Pontos fortes e fracos do time</p>
           <div id="tips-list" class="tips-list"></div>
         </div>
-
       </div>
-
-      <!-- Stats overview do time -->
       <div class="stats-overview" id="stats-overview">
         <h3 class="section-title">STATS DO TIME</h3>
         <div id="stats-grid" class="stats-grid"></div>
       </div>
 
-      <!-- Export modal -->
       <div id="export-modal" class="modal hidden">
         <div class="modal-box">
           <div class="modal-header">
@@ -126,7 +109,104 @@
     </div>
   </div>
 
+  <!-- SET BUILDER OVERLAY -->
+  <div id="setbuilder-overlay" class="setbuilder-overlay hidden">
+    <div class="sb-header">
+      <button class="sb-back" id="sb-back">← Voltar</button>
+      <div class="sb-title">Editar set — <strong id="sb-poke-title">—</strong></div>
+      <button class="sb-save" id="sb-save">✓ Salvar set</button>
+    </div>
+    <div class="sb-body">
+
+      <!-- LEFT: Pokémon info + stats -->
+      <div class="sb-left">
+        <div class="sb-sprite-wrap">
+          <img id="sb-sprite" class="sb-sprite" src="" alt="" />
+          <div id="sb-poke-name" class="sb-poke-name"></div>
+          <div id="sb-poke-id" class="sb-poke-id"></div>
+          <div id="sb-types" class="sb-types"></div>
+        </div>
+        <div>
+          <div class="sb-section-label">Stats finais (com nature + EVs)</div>
+          <div id="sb-basestats" class="sb-basestats"></div>
+        </div>
+      </div>
+
+      <!-- CENTER: Editor -->
+      <div class="sb-center">
+
+        <!-- Nickname + Item -->
+        <div>
+          <div class="sb-section-label">Identidade</div>
+          <div class="sb-row">
+            <div class="sb-field">
+              <label>Nickname</label>
+              <input id="sb-nickname" type="text" placeholder="opcional" />
+            </div>
+            <div class="sb-field">
+              <label>Item</label>
+              <input id="sb-item" type="text" placeholder="ex: Choice Scarf" />
+            </div>
+          </div>
+        </div>
+
+        <!-- Ability + Tera -->
+        <div>
+          <div class="sb-section-label">Habilidade & Tera</div>
+          <div class="sb-row">
+            <div class="sb-field">
+              <label>Habilidade</label>
+              <select id="sb-ability"></select>
+            </div>
+            <div class="sb-field">
+              <label>Tera Type</label>
+              <div id="sb-tera-grid" class="tera-grid"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Nature -->
+        <div>
+          <div class="sb-section-label">Natureza</div>
+          <div id="sb-nature-grid" class="nature-grid"></div>
+        </div>
+
+        <!-- EVs -->
+        <div>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+            <div class="sb-section-label" style="margin-bottom:0">EVs</div>
+            <div class="ev-total-row" style="margin-top:0">
+              <span class="ev-total-label">Total:</span>
+              <span id="sb-ev-total" class="ev-total-val ok">0 / 508</span>
+            </div>
+          </div>
+          <div id="sb-ev-grid" class="ev-grid"></div>
+        </div>
+
+        <!-- Moves -->
+        <div>
+          <div class="sb-section-label">Moveset</div>
+          <div id="sb-moves-grid" class="moves-grid"></div>
+        </div>
+
+      </div>
+
+      <!-- RIGHT: Builds pré-definidas -->
+      <div class="sb-right">
+        <div class="sb-right-header">
+          <div class="sb-right-title">Builds populares</div>
+          <div id="sb-format-tabs" class="sb-format-tabs"></div>
+        </div>
+        <div id="sb-builds-list" class="sb-builds-list">
+          <div class="sb-build-loading">Selecione um formato acima</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
   <script src="scripts/data.js"></script>
   <script src="scripts/teambuilder.js"></script>
+  <script src="scripts/setbuilder.js"></script>
 </body>
 </html>
