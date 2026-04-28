@@ -835,6 +835,20 @@ select:focus { border-color: var(--accent); }
   margin-top: 1.25rem;
 }
 
+.poke-item-tag {
+  display: inline-block;
+  margin-top: 6px;
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  padding: 3px 8px;
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 99px;
+  color: var(--text);
+  background: rgba(255,255,255,0.03);
+  text-transform: capitalize;
+}
+
 /* Grid de fraquezas/resistências */
 .poke-def-grid {
   display: flex;
@@ -846,16 +860,20 @@ select:focus { border-color: var(--accent); }
 .poke-def-chip {
   display: flex;
   align-items: center;
-  gap: 4px;
-  padding: 3px 7px;
-  border-radius: 4px;
+  gap: 6px;
+  padding: 4px 8px;
+  border-radius: 6px;
   font-size: 11px;
   font-family: var(--mono);
   border: 1px solid transparent;
 }
 
-.poke-def-type { text-transform: capitalize; }
-.poke-def-mult { font-size: 10px; opacity: 0.8; }
+.poke-def-chip .type-badge {
+  opacity: 1;
+  color: #fff;
+}
+
+.poke-def-mult { font-size: 10px; opacity: 0.9; }
 
 .poke-def-weak   { background: rgba(255,68,68,0.12);  border-color: rgba(255,68,68,0.3);  color: #ff8888; }
 .poke-def-resist { background: rgba(120,200,80,0.1);  border-color: rgba(120,200,80,0.25); color: #78C850; }
@@ -1138,6 +1156,22 @@ select:focus { border-color: var(--accent); }
   transition: border-color .15s;
   appearance: none;
 }
+
+.sb-field.item-field { position: relative; }
+.sb-field.item-field input { padding-right: 38px; }
+.sb-item-icon {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  width: 20px;
+  height: 20px;
+  transform: translateY(-50%);
+  border-radius: 4px;
+  background: rgba(255,255,255,0.08);
+  padding: 2px;
+  box-shadow: 0 0 0 1px rgba(255,255,255,0.05);
+}
+.sb-item-icon.hidden { display: none; }
 
 .sb-field input:focus,
 .sb-field select:focus { border-color: var(--accent); }

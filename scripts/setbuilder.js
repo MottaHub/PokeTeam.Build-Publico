@@ -27,6 +27,13 @@ const ALL_NATURES = [
   'calm','gentle','sassy','careful','quirky'
 ];
 
+const ITEM_SUGGESTIONS = [
+  'Choice Band','Choice Scarf','Choice Specs',
+  'Life Orb','Leftovers','Assault Vest','Focus Sash',
+  'Heavy-Duty Boots','Air Balloon','Rocky Helmet',
+  'Expert Belt','Choice Belt','Sitrus Berry'
+];
+
 // Nature stat modifiers
 const NATURE_MOD = {
   lonely:{up:'attack',down:'defense'}, brave:{up:'attack',down:'speed'},
@@ -97,6 +104,10 @@ function renderSetBuilder() {
   // Campos simples
   document.getElementById('sb-nickname').value = sbSet.nickname || '';
   document.getElementById('sb-item').value     = sbSet.item     || '';
+  populateItemDatalist();
+  updateItemIcon(sbSet.item);
+  const itemInput = document.getElementById('sb-item');
+  itemInput.oninput = () => updateItemIcon(itemInput.value);
 
   // Habilidade
   const abilSelect = document.getElementById('sb-ability');
@@ -227,6 +238,12 @@ function updateEVTotal() {
 }
 
 // ─── Moves Grid ──────────────────────────────
+function populateItemDatalist() {
+  const list = document.getElementById('sb-item-list');
+  if (!list) return;
+  list.innerHTML = ITEM_SUGGESTIONS.map(item => `<option value="${item}"></option>`).join('');
+}
+
 function renderMovesGrid() {
   const grid = document.getElementById('sb-moves-grid');
   grid.innerHTML = '';
@@ -489,6 +506,7 @@ function applyBuild(build) {
 
   // Re-renderiza os campos editáveis
   document.getElementById('sb-item').value = sbSet.item;
+  updateItemIcon(sbSet.item);
 
   const abilSelect = document.getElementById('sb-ability');
   if (Array.from(abilSelect.options).some(o => o.value === sbSet.ability)) {
@@ -537,6 +555,25 @@ function saveSet() {
 }
 
 // ─── Helpers ─────────────────────────────────
+function itemIconUrl(item) {
+  if (!item) return '';
+  const name = item.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+  return `https://play.pokemonshowdown.com/sprites/items/${name}.png`;
+}
+
+function updateItemIcon(item) {
+  const img = document.getElementById('sb-item-icon');
+  const url = itemIconUrl(item);
+  if (!url) {
+    img.classList.add('hidden');
+    img.src = '';
+    return;
+  }
+  img.onload = () => img.classList.remove('hidden');
+  img.onerror = () => img.classList.add('hidden');
+  img.src = url;
+}
+
 function parseEVString(str) {
   const evs = {};
   STAT_ORDER.forEach(s => evs[s] = 0);

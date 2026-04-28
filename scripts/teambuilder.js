@@ -264,9 +264,10 @@ async function analyzeTeam() {
     });
   });
 
+  const teamProfile = buildTeamProfile(team);
   renderTypeChart('defensive-chart', weakMap);
   renderTypeChart('resist-chart', resistMap);
-  renderTips(weakMap, resistMap, immuneMap, null);
+  renderTips(weakMap, resistMap, immuneMap, null, teamProfile);
   renderStatCards();
 
   updateOffensiveLabel(true);
@@ -278,7 +279,7 @@ async function analyzeTeam() {
     offMapCache  = offMap;
     updateOffensiveLabel(false);
     renderTypeChart('offensive-chart', offMap);
-    renderTips(weakMap, resistMap, immuneMap, offMap);
+    renderTips(weakMap, resistMap, immuneMap, offMap, teamProfile);
   } catch(e) {
     document.getElementById('offensive-chart').innerHTML =
       `<div class="result-msg" style="font-size:12px">Erro ao analisar movesets.</div>`;
@@ -318,11 +319,45 @@ function renderTypeChart(elId, map) {
   });
 }
 
-function renderTips(weakMap, resistMap, immuneMap, offMap) {
+function renderTips(weakMap, resistMap, immuneMap, offMap, profile) {
   const el   = document.getElementById('tips-list');
   const tips = [];
   const n    = team.length;
   if (!n) { el.innerHTML = ''; return; }
+
+  const roleSummary = buildTeamRoleSummary(profile);
+  if (roleSummary.length) {
+    tips.push({ type: 'info', text: `Funções do time: <strong>${roleSummary.join(', ')}</strong>.` });
+  }
+
+  if (!profile.movesKnown) {
+    tips.push({ type: 'info', text: 'Sem sets salvos completos, análise de funções e hazards está limitada. Edite e salve moves para melhores dicas.' });
+  } else {
+    if (!profile.hazardSetters.length && !profile.hazardRemovers.length) {
+      tips.push({ type: 'warn', text: 'Sem controle claro de hazards: nenhum setter ou remover detectado.' });
+    } else {
+      if (!profile.hazardSetters.length)
+        tips.push({ type: 'warn', text: 'Nenhum hazard setter detectado.' });
+      if (!profile.hazardRemovers.length)
+        tips.push({ type: 'warn', text: 'Nenhum hazard remover detectado.' });
+    }
+
+    if (!profile.pivots.length)
+      tips.push({ type: 'warn', text: 'Nenhum pivot detectado — trocas seguras e momentum podem estar faltando.' });
+
+    if (!profile.setupSweepers.length)
+      tips.push({ type: 'info', text: 'Sem setup sweeper detectado — o time pode faltar pressão de late game.' });
+
+    if (profile.scarfUsers.length || profile.priorityUsers.length || profile.trickRoomUsers.length) {
+      const controls = [];
+      if (profile.scarfUsers.length) controls.push(`Choice Scarf em ${profile.scarfUsers.join(', ')}`);
+      if (profile.priorityUsers.length) controls.push(`priority em ${profile.priorityUsers.join(', ')}`);
+      if (profile.trickRoomUsers.length) controls.push(`Trick Room em ${profile.trickRoomUsers.join(', ')}`);
+      tips.push({ type: 'ok', text: `Speed control detectado: <strong>${controls.join('; ')}</strong>.` });
+    } else {
+      tips.push({ type: 'warn', text: 'Nenhum controle de velocidade detectado: sem Scarf, prioridade ou Trick Room.' });
+    }
+  }
 
   const critWeak = ALL_TYPES.filter(t => weakMap[t] >= Math.ceil(n * 0.5));
   if (critWeak.length)
@@ -330,12 +365,12 @@ function renderTips(weakMap, resistMap, immuneMap, offMap) {
 
   const immuneTypes = ALL_TYPES.filter(t => immuneMap[t] > 0);
   if (immuneTypes.length)
-    tips.push({ type: 'ok', text: `Imunidade a: <strong>${immuneTypes.join(', ')}</strong>` });
+    tips.push({ type: 'ok', text: `Imunidade a: <strong>${immuneTypes.join(', ')}</strong>.` });
 
   if (offMap) {
     const noOffense = ALL_TYPES.filter(t => (offMap[t]||0) === 0 && weakMap[t] > 0);
     if (noOffense.length)
-      tips.push({ type: 'warn', text: `Sem cobertura nos tipos que te ameaçam: <strong>${noOffense.join(', ')}</strong>` });
+      tips.push({ type: 'warn', text: `Sem cobertura nos tipos que te ameaçam: <strong>${noOffense.join(', ')}</strong>.` });
     else
       tips.push({ type: 'ok', text: `Cobertura ofensiva sólida para ${18 - ALL_TYPES.filter(t=>(offMap[t]||0)===0).length} tipos.` });
   } else {
@@ -351,6 +386,74 @@ function renderTips(weakMap, resistMap, immuneMap, offMap) {
     : `Adicione mais ${6-n} Pokémon para completar o time.` });
 
   el.innerHTML = tips.map(t => `<div class="tip-item tip-${t.type}">${t.text}</div>`).join('');
+}
+
+function buildTeamProfile(team) {
+  const profile = {
+    hazardSetters: [],
+    hazardRemovers: [],
+    pivots: [],
+    setupSweepers: [],
+    priorityUsers: [],
+    scarfUsers: [],
+    trickRoomUsers: [],
+    choiceUsers: [],
+    movesKnown: false
+  };
+
+  const normalize = str => (str || '').toLowerCase()
+    .replace(/[^\x00-\x7F]/g, '')
+    .replace(/[^a-z0-9 ]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  const includesAny = (text, values) => values.some(v => text.includes(v));
+
+  const hazardMoves = ['stealth rock','spikes','toxic spikes','sticky web'];
+  const removerMoves = ['defog','rapid spin','court change'];
+  const pivotMoves = ['u-turn','volt switch','bounce','flip turn','parting shot','teleport'];
+  const setupMoves = ['dragon dance','calm mind','nasty plot','swords dance','bulk up','coil','curse','shift gear'];
+  const priorityMoves = ['aqua jet','bullet punch','extreme speed','shadow sneak','quick attack','first impression','sucker punch','mach punch','feint','ice shard','psychic fang'];
+
+  team.forEach(p => {
+    const saved = teamSets[p.id] || {};
+    const name = saved.nickname ? capitalize(saved.nickname) : capitalize(p.name);
+    const item = normalize(saved.item || '');
+    const ability = normalize(saved.ability || p.abilities?.[0]?.ability?.name || '');
+    const moves = (saved.moves || []).map(m => normalize(m));
+    const moveText = moves.join(' ');
+    if (moves.some(Boolean)) profile.movesKnown = true;
+
+    const hasHazardSetter = includesAny(moveText, hazardMoves);
+    const hasHazardRemover = includesAny(moveText, removerMoves);
+    const hasPivot = includesAny(moveText, pivotMoves);
+    const hasSetup = includesAny(moveText, setupMoves);
+    const hasPriority = includesAny(moveText, priorityMoves);
+    const hasTrickRoom = moveText.includes('trick room');
+    const hasScarf = item.includes('scarf');
+    const hasChoice = item.includes('choice');
+
+    if (hasHazardSetter) profile.hazardSetters.push(name);
+    if (hasHazardRemover) profile.hazardRemovers.push(name);
+    if (hasPivot) profile.pivots.push(name);
+    if (hasSetup) profile.setupSweepers.push(name);
+    if (hasPriority) profile.priorityUsers.push(name);
+    if (hasTrickRoom) profile.trickRoomUsers.push(name);
+    if (hasScarf) profile.scarfUsers.push(name);
+    if (hasChoice) profile.choiceUsers.push(name);
+  });
+
+  return profile;
+}
+
+function buildTeamRoleSummary(profile) {
+  const roles = [];
+  if (profile.hazardSetters.length) roles.push('Hazard setter');
+  if (profile.hazardRemovers.length) roles.push('Hazard remover');
+  if (profile.pivots.length) roles.push('Pivot');
+  if (profile.setupSweepers.length) roles.push('Setup sweeper');
+  if (profile.scarfUsers.length || profile.priorityUsers.length || profile.trickRoomUsers.length) roles.push('Speed control');
+  if (profile.choiceUsers.length) roles.push('Choice user');
+  return roles;
 }
 
 function renderStatCards() {
@@ -378,6 +481,7 @@ function renderStatCards() {
 
 // ─── Modal de Detalhes ───────────────────────
 function openPokeModal(p) {
+  const savedSet = teamSets[p.id] || {};
   const types   = p.types.map(t => t.type.name);
   const modal   = document.getElementById('poke-modal');
   const content = document.getElementById('poke-modal-content');
@@ -391,9 +495,16 @@ function openPokeModal(p) {
   const defHtml = defRows.length ? `
     <div class="poke-def-grid">${defRows.map(r => `
       <div class="poke-def-chip poke-def-${r.cls}">
-        <span class="poke-def-type">${r.atk}</span>
+        ${typeBadge(r.atk, true)}
         <span class="poke-def-mult">${r.label}</span>
       </div>`).join('')}</div>` : '';
+
+  const savedAbility = savedSet.ability || p.abilities?.[0]?.ability?.name || '';
+  const savedAbilityObj = p.abilities?.find(a => a.ability.name === savedAbility);
+  const abilityHtml = savedAbility
+    ? `<span class="ability-chip${savedAbilityObj?.is_hidden ? ' hidden-ability' : ''}">${capitalize(savedAbility)}${savedAbilityObj?.is_hidden ? ' (hidden)' : ''}</span>`
+    : (p.abilities||[]).map(a => `<span class="${a.is_hidden?'ability-chip hidden-ability':'ability-chip'}">${capitalize(a.ability.name)}${a.is_hidden?' (hidden)':''}</span>`).join('') || '—';
+  const itemHtml = savedSet.item ? `<div class="poke-item-tag">@ ${capitalize(savedSet.item)}</div>` : '';
 
   const totalBST = p.stats.reduce((a,s) => a+s.base_stat, 0);
   const { nature, evs, role } = suggestNatureAndEVs(p);
@@ -407,6 +518,7 @@ function openPokeModal(p) {
         <h2>${p.name}</h2>
         <div class="poke-detail-types">${types.map(t => typeBadge(t)).join('')}</div>
         <div class="poke-role-tag">${role}</div>
+        ${itemHtml}
       </div>
     </div>
     <div class="poke-stats-title">BASE STATS — BST ${totalBST}</div>
@@ -423,7 +535,7 @@ function openPokeModal(p) {
     ${defHtml}
     <div class="poke-abilities">
       <div class="poke-abilities-title">HABILIDADES</div>
-      ${(p.abilities||[]).map(a => `<span class="${a.is_hidden?'ability-chip hidden-ability':'ability-chip'}">${a.ability.name}${a.is_hidden?' (hidden)':''}</span>`).join('') || '—'}
+      ${abilityHtml}
     </div>
   `;
   modal.classList.remove('hidden');
