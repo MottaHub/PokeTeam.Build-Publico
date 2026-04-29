@@ -1,22 +1,26 @@
 // =============================================
-// setbuilder.js — Editor de set completo v1
+// setbuilder.js — Editor de set completo v2
 // =============================================
 
-// ─── Estado do editor ────────────────────────
-let sbPokemon   = null;   // objeto pokemon da PokeAPI
-let sbTeamIdx   = -1;     // índice no array team[]
-let sbSet       = {};     // set atual sendo editado
-let sbBuildFmt  = 'gen9ou';
-let sbBuildsCache = {};   // { 'gen9ou:garchomp': [...] }
+let sbPokemon     = null;
+let sbTeamIdx     = -1;
+let sbSet         = {};
+let sbBuildFmt    = 'gen9ou';
+let sbBuildsCache = {};
 
-// Formatos disponíveis para busca de builds
+// Move picker state
+let sbMovePickerSlot   = -1;   // qual slot (0-3) está aberto
+let sbMoveSearchTimer  = null;
+let sbMoveCache        = {};   // { moveName: moveData }
+let sbLearnableMoves   = [];   // lista de moves do pokémon atual
+
 const SB_FORMATS = [
-  { key: 'gen9ou',            label: 'Gen 9 OU' },
-  { key: 'gen9vgc2025regg',   label: 'VGC 25'  },
-  { key: 'gen9uu',            label: 'UU'       },
-  { key: 'gen9ubers',         label: 'Ubers'    },
-  { key: 'gen7ou',            label: 'SM OU'    },
-  { key: 'gen8ou',            label: 'SS OU'    },
+  { key: 'gen9ou',          label: 'Gen 9 OU' },
+  { key: 'gen9vgc2025regg', label: 'VGC 25'   },
+  { key: 'gen9uu',          label: 'UU'        },
+  { key: 'gen9ubers',       label: 'Ubers'     },
+  { key: 'gen7ou',          label: 'SM OU'     },
+  { key: 'gen8ou',          label: 'SS OU'     },
 ];
 
 const ALL_NATURES = [
@@ -27,35 +31,30 @@ const ALL_NATURES = [
   'calm','gentle','sassy','careful','quirky'
 ];
 
-const ITEM_SUGGESTIONS = [
-  'Choice Band','Choice Scarf','Choice Specs',
-  'Life Orb','Leftovers','Assault Vest','Focus Sash',
-  'Heavy-Duty Boots','Air Balloon','Rocky Helmet',
-  'Expert Belt','Choice Belt','Sitrus Berry'
-];
-
-// Nature stat modifiers
 const NATURE_MOD = {
-  lonely:{up:'attack',down:'defense'}, brave:{up:'attack',down:'speed'},
-  adamant:{up:'attack',down:'special-attack'}, naughty:{up:'attack',down:'special-defense'},
-  bold:{up:'defense',down:'attack'}, relaxed:{up:'defense',down:'speed'},
-  impish:{up:'defense',down:'special-attack'}, lax:{up:'defense',down:'special-defense'},
-  timid:{up:'speed',down:'attack'}, hasty:{up:'speed',down:'defense'},
-  jolly:{up:'speed',down:'special-attack'}, naive:{up:'speed',down:'special-defense'},
+  lonely:{up:'attack',down:'defense'},       brave:{up:'attack',down:'speed'},
+  adamant:{up:'attack',down:'special-attack'},naughty:{up:'attack',down:'special-defense'},
+  bold:{up:'defense',down:'attack'},          relaxed:{up:'defense',down:'speed'},
+  impish:{up:'defense',down:'special-attack'},lax:{up:'defense',down:'special-defense'},
+  timid:{up:'speed',down:'attack'},           hasty:{up:'speed',down:'defense'},
+  jolly:{up:'speed',down:'special-attack'},   naive:{up:'speed',down:'special-defense'},
   modest:{up:'special-attack',down:'attack'}, mild:{up:'special-attack',down:'defense'},
-  quiet:{up:'special-attack',down:'speed'}, rash:{up:'special-attack',down:'special-defense'},
-  calm:{up:'special-defense',down:'attack'}, gentle:{up:'special-defense',down:'defense'},
-  sassy:{up:'special-defense',down:'speed'}, careful:{up:'special-defense',down:'special-attack'},
+  quiet:{up:'special-attack',down:'speed'},   rash:{up:'special-attack',down:'special-defense'},
+  calm:{up:'special-defense',down:'attack'},  gentle:{up:'special-defense',down:'defense'},
+  sassy:{up:'special-defense',down:'speed'},  careful:{up:'special-defense',down:'special-attack'},
 };
 
 const STAT_ORDER = ['hp','attack','defense','special-attack','special-defense','speed'];
+
+const DAMAGE_CLASS_LABEL = { physical: 'FÍS', special: 'ESP', status: 'STA' };
+const DAMAGE_CLASS_COLOR = { physical: '#F08030', special: '#6890F0', status: '#78C850' };
 
 // ─── Abre o Set Builder ───────────────────────
 function openSetBuilder(pokemon, teamIdx) {
   sbPokemon = pokemon;
   sbTeamIdx = teamIdx;
+  sbMovePickerSlot = -1;
 
-  // Inicializa o set — usa o set salvo ou gera sugestão
   const savedSet = teamSets[pokemon.id];
   if (savedSet) {
     sbSet = JSON.parse(JSON.stringify(savedSet));
@@ -67,14 +66,16 @@ function openSetBuilder(pokemon, teamIdx) {
       item:     '',
       ability:  pokemon.abilities?.[0]?.ability?.name || '',
       tera:     pokemon.types[0]?.type?.name || 'normal',
-      nature:   nature,
-      evs:      parseEVString(evs),
-      moves:    moves.map(m => m.replace('- ', '')),
+      nature,
+      evs:  parseEVString(evs),
+      moves: moves.map(m => m.replace('- ', '')),
     };
   }
 
-  // Detecta formato atual
   sbBuildFmt = document.getElementById('format-select').value || 'gen9ou';
+
+  // Carrega lista de moves aprendíveis em background
+  loadLearnableMoves(pokemon);
 
   renderSetBuilder();
   document.getElementById('setbuilder-overlay').classList.remove('hidden');
@@ -82,15 +83,64 @@ function openSetBuilder(pokemon, teamIdx) {
 }
 
 function closeSetBuilder() {
+  closeMovePickerDropdown();
   document.getElementById('setbuilder-overlay').classList.add('hidden');
   document.body.style.overflow = '';
+}
+
+// ─── Carrega moves aprendíveis ────────────────
+async function loadLearnableMoves(pokemon) {
+  // Pega todos os moves do pokémon, prioriza level-up e machine
+  const all = (pokemon.moves || []).map(m => ({
+    name: m.move.name,
+    url:  m.move.url,
+    methods: m.version_group_details.map(d => d.move_learn_method.name),
+  }));
+
+  // Ordena: level-up primeiro, depois machine, depois o resto
+  const priority = name => {
+    if (name === 'level-up') return 0;
+    if (name === 'machine')  return 1;
+    if (name === 'egg')      return 2;
+    return 3;
+  };
+
+  all.sort((a, b) => {
+    const pa = Math.min(...a.methods.map(priority));
+    const pb = Math.min(...b.methods.map(priority));
+    return pa - pb;
+  });
+
+  sbLearnableMoves = all;
+}
+
+// ─── Busca dados de um move na PokeAPI ────────
+async function fetchMoveData(name) {
+  const key = name.toLowerCase().replace(/\s+/g, '-');
+  if (sbMoveCache[key]) return sbMoveCache[key];
+
+  try {
+    const r = await fetch(`${POKEAPI}/move/${key}`);
+    if (!r.ok) return null;
+    const d = await r.json();
+    const data = {
+      name:     d.name,
+      label:    d.names?.find(n => n.language.name === 'en')?.name || capitalize(d.name),
+      type:     d.type?.name || 'normal',
+      category: d.damage_class?.name || 'status',
+      power:    d.power,
+      accuracy: d.accuracy,
+      pp:       d.pp,
+    };
+    sbMoveCache[key] = data;
+    return data;
+  } catch { return null; }
 }
 
 // ─── Renderiza tudo ──────────────────────────
 function renderSetBuilder() {
   const p = sbPokemon;
 
-  // Header
   document.getElementById('sb-poke-title').textContent = p.name;
   document.getElementById('sb-sprite').src = SPRITE_HD(p.id);
   document.getElementById('sb-sprite').onerror = () => {
@@ -98,18 +148,11 @@ function renderSetBuilder() {
   };
   document.getElementById('sb-poke-name').textContent = p.name;
   document.getElementById('sb-poke-id').textContent = `#${String(p.id).padStart(3,'0')}`;
-  document.getElementById('sb-types').innerHTML =
-    p.types.map(t => typeBadge(t.type.name)).join('');
+  document.getElementById('sb-types').innerHTML = p.types.map(t => typeBadge(t.type.name)).join('');
 
-  // Campos simples
   document.getElementById('sb-nickname').value = sbSet.nickname || '';
   document.getElementById('sb-item').value     = sbSet.item     || '';
-  populateItemDatalist();
-  updateItemIcon(sbSet.item);
-  const itemInput = document.getElementById('sb-item');
-  itemInput.oninput = () => updateItemIcon(itemInput.value);
 
-  // Habilidade
   const abilSelect = document.getElementById('sb-ability');
   abilSelect.innerHTML = (p.abilities || []).map(a =>
     `<option value="${a.ability.name}" ${a.ability.name === sbSet.ability ? 'selected' : ''}>
@@ -117,22 +160,11 @@ function renderSetBuilder() {
     </option>`
   ).join('');
 
-  // Tera type
   renderTeraGrid();
-
-  // Nature
   renderNatureGrid();
-
-  // EVs
   renderEVGrid();
-
-  // Moves
   renderMovesGrid();
-
-  // Stat preview
   updateStatPreview();
-
-  // Format tabs + builds
   renderFormatTabs();
   loadBuilds(sbBuildFmt);
 }
@@ -146,7 +178,6 @@ function renderTeraGrid() {
     return `<button class="tera-btn ${active}" style="background:${color}"
               data-tera="${t}" title="${t}">${t.slice(0,3).toUpperCase()}</button>`;
   }).join('');
-
   grid.querySelectorAll('.tera-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       sbSet.tera = btn.dataset.tera;
@@ -160,10 +191,12 @@ function renderTeraGrid() {
 function renderNatureGrid() {
   const grid = document.getElementById('sb-nature-grid');
   grid.innerHTML = ALL_NATURES.map(n => {
+    const mod = NATURE_MOD[n];
+    let title = capitalize(n);
+    if (mod) title += ` (+${mod.up.split('-')[0]} -${mod.down.split('-')[0]})`;
     const active = sbSet.nature === n ? 'active' : '';
-    return `<button class="nature-btn ${active}" data-nature="${n}">${n}</button>`;
+    return `<button class="nature-btn ${active}" data-nature="${n}" title="${title}">${n}</button>`;
   }).join('');
-
   grid.querySelectorAll('.nature-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       sbSet.nature = btn.dataset.nature;
@@ -178,7 +211,6 @@ function renderNatureGrid() {
 function renderEVGrid() {
   const grid = document.getElementById('sb-ev-grid');
   grid.innerHTML = '';
-
   STAT_ORDER.forEach(stat => {
     const label = STAT_LABELS[stat] || stat;
     const val   = sbSet.evs[stat] || 0;
@@ -186,10 +218,8 @@ function renderEVGrid() {
     row.className = 'ev-row';
     row.innerHTML = `
       <div class="ev-label">${label}</div>
-      <input type="range" class="ev-slider" min="0" max="252" step="4"
-             value="${val}" data-stat="${stat}" />
-      <input type="number" class="ev-number" min="0" max="252" step="4"
-             value="${val}" data-stat="${stat}" />
+      <input type="range" class="ev-slider" min="0" max="252" step="4" value="${val}" data-stat="${stat}" />
+      <input type="number" class="ev-number" min="0" max="252" step="4" value="${val}" data-stat="${stat}" />
     `;
     grid.appendChild(row);
 
@@ -198,31 +228,24 @@ function renderEVGrid() {
 
     slider.addEventListener('input', () => {
       const v = clampEV(stat, parseInt(slider.value));
-      slider.value = v;
-      number.value = v;
+      slider.value = number.value = v;
       sbSet.evs[stat] = v;
-      updateEVTotal();
-      updateStatPreview();
+      updateEVTotal(); updateStatPreview();
     });
-
     number.addEventListener('change', () => {
       const v = clampEV(stat, parseInt(number.value) || 0);
-      slider.value = v;
-      number.value = v;
+      slider.value = number.value = v;
       sbSet.evs[stat] = v;
-      updateEVTotal();
-      updateStatPreview();
+      updateEVTotal(); updateStatPreview();
     });
   });
-
   updateEVTotal();
 }
 
 function clampEV(stat, val) {
   val = Math.max(0, Math.min(252, Math.round(val / 4) * 4));
   const total = getTotalEVs();
-  const current = sbSet.evs[stat] || 0;
-  const remaining = 508 - (total - current);
+  const remaining = 508 - (total - (sbSet.evs[stat] || 0));
   return Math.min(val, remaining);
 }
 
@@ -237,34 +260,251 @@ function updateEVTotal() {
   el.className = 'ev-total-val ' + (total > 508 ? 'over' : 'ok');
 }
 
-// ─── Moves Grid ──────────────────────────────
-function populateItemDatalist() {
-  const list = document.getElementById('sb-item-list');
-  if (!list) return;
-  list.innerHTML = ITEM_SUGGESTIONS.map(item => `<option value="${item}"></option>`).join('');
-}
-
+// ─── Moves Grid com Picker ────────────────────
 function renderMovesGrid() {
   const grid = document.getElementById('sb-moves-grid');
   grid.innerHTML = '';
 
   for (let i = 0; i < 4; i++) {
-    const move = sbSet.moves[i] || '';
-    const row  = document.createElement('div');
+    const moveName = sbSet.moves[i] || '';
+    const row = document.createElement('div');
     row.className = 'move-slot';
+    row.dataset.idx = i;
     row.innerHTML = `
       <div class="move-slot-num">${i + 1}</div>
-      <div class="move-type-dot" id="sb-move-dot-${i}"></div>
-      <input type="text" class="move-input" placeholder="Move ${i+1}"
-             value="${move}" data-move-idx="${i}" />
+      <div class="move-picker-wrap" id="sb-move-wrap-${i}">
+        <div class="move-selected" id="sb-move-display-${i}" data-idx="${i}">
+          <div class="move-selected-left">
+            <div class="move-type-chip" id="sb-move-type-${i}"></div>
+            <div class="move-cat-chip"  id="sb-move-cat-${i}"></div>
+            <span class="move-selected-name" id="sb-move-name-${i}">${moveName || '— Nenhum move —'}</span>
+          </div>
+          <div class="move-selected-right">
+            <span class="move-stat-val" id="sb-move-pow-${i}"></span>
+            <span class="move-stat-sep" id="sb-move-sep1-${i}"></span>
+            <span class="move-stat-val" id="sb-move-acc-${i}"></span>
+            <span class="move-stat-sep" id="sb-move-sep2-${i}"></span>
+            <span class="move-stat-val muted" id="sb-move-pp-${i}"></span>
+          </div>
+          <button class="move-clear-btn" id="sb-move-clear-${i}" data-idx="${i}" title="Limpar move">×</button>
+        </div>
+        <div class="move-picker-dropdown hidden" id="sb-move-dropdown-${i}">
+          <div class="move-search-wrap">
+            <input class="move-search-input" id="sb-move-search-${i}"
+                   placeholder="Buscar move..." autocomplete="off" data-idx="${i}" />
+            <div class="move-filter-row">
+              <button class="move-filter-btn active" data-filter="all"   data-idx="${i}">Todos</button>
+              <button class="move-filter-btn" data-filter="physical" data-idx="${i}" style="color:#F08030">Físico</button>
+              <button class="move-filter-btn" data-filter="special"  data-idx="${i}" style="color:#6890F0">Especial</button>
+              <button class="move-filter-btn" data-filter="status"   data-idx="${i}" style="color:#78C850">Status</button>
+            </div>
+          </div>
+          <div class="move-list" id="sb-move-list-${i}">
+            <div class="move-list-loading">Carregando moves...</div>
+          </div>
+        </div>
+      </div>
     `;
     grid.appendChild(row);
 
-    const input = row.querySelector('.move-input');
-    input.addEventListener('input', () => {
-      sbSet.moves[i] = input.value;
+    // Atualiza display imediato se já tem move
+    if (moveName) refreshMoveDisplay(i, moveName);
+
+    // Clique no display abre o picker
+    const display = row.querySelector(`#sb-move-display-${i}`);
+    display.addEventListener('click', (e) => {
+      if (e.target.classList.contains('move-clear-btn')) return;
+      toggleMovePicker(i);
+    });
+
+    // Botão de limpar
+    row.querySelector(`#sb-move-clear-${i}`).addEventListener('click', (e) => {
+      e.stopPropagation();
+      sbSet.moves[i] = '';
+      clearMoveDisplay(i);
+      closeMovePickerDropdown();
+    });
+
+    // Search input
+    const searchEl = row.querySelector(`#sb-move-search-${i}`);
+    searchEl.addEventListener('input', () => {
+      clearTimeout(sbMoveSearchTimer);
+      sbMoveSearchTimer = setTimeout(() => renderMoveList(i, searchEl.value), 200);
+    });
+    searchEl.addEventListener('click', e => e.stopPropagation());
+
+    // Filtros
+    row.querySelectorAll(`.move-filter-btn[data-idx="${i}"]`).forEach(btn => {
+      btn.addEventListener('click', e => {
+        e.stopPropagation();
+        row.querySelectorAll(`.move-filter-btn[data-idx="${i}"]`).forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        renderMoveList(i, searchEl.value, btn.dataset.filter);
+      });
     });
   }
+
+  // Fecha ao clicar fora
+  document.addEventListener('click', handleOutsideClick);
+}
+
+function handleOutsideClick(e) {
+  if (!e.target.closest('.move-picker-wrap')) closeMovePickerDropdown();
+}
+
+function toggleMovePicker(idx) {
+  const isOpen = sbMovePickerSlot === idx;
+  closeMovePickerDropdown();
+  if (!isOpen) {
+    sbMovePickerSlot = idx;
+    const dropdown = document.getElementById(`sb-move-dropdown-${idx}`);
+    dropdown.classList.remove('hidden');
+    // Foca no search
+    setTimeout(() => {
+      document.getElementById(`sb-move-search-${idx}`)?.focus();
+    }, 50);
+    renderMoveList(idx, '', 'all');
+  }
+}
+
+function closeMovePickerDropdown() {
+  if (sbMovePickerSlot >= 0) {
+    document.getElementById(`sb-move-dropdown-${sbMovePickerSlot}`)?.classList.add('hidden');
+    sbMovePickerSlot = -1;
+  }
+}
+
+// ─── Renderiza lista de moves no dropdown ─────
+async function renderMoveList(slotIdx, query, filter) {
+  const listEl = document.getElementById(`sb-move-list-${slotIdx}`);
+  if (!listEl) return;
+
+  // Pega o filtro ativo se não passou
+  if (!filter) {
+    const activeBtn = document.querySelector(`.move-filter-btn.active[data-idx="${slotIdx}"]`);
+    filter = activeBtn?.dataset.filter || 'all';
+  }
+
+  const q = (query || '').toLowerCase().replace(/\s+/g, '-');
+
+  // Filtra da lista aprendível do pokémon
+  let candidates = sbLearnableMoves
+    .filter(m => !q || m.name.includes(q) || m.name.replace(/-/g,' ').includes(q))
+    .slice(0, 60);
+
+  listEl.innerHTML = '<div class="move-list-loading">Carregando...</div>';
+
+  // Busca dados dos moves em lotes
+  const batch = candidates.slice(0, 30);
+  const datas = await Promise.all(batch.map(m => fetchMoveData(m.name)));
+
+  // Filtra por categoria se necessário
+  let rows = batch.map((m, i) => ({ move: m, data: datas[i] }))
+    .filter(({ data }) => data && (filter === 'all' || data.category === filter));
+
+  if (!rows.length) {
+    listEl.innerHTML = `<div class="move-list-empty">Nenhum move encontrado.</div>`;
+    return;
+  }
+
+  listEl.innerHTML = '';
+  rows.forEach(({ move, data }) => {
+    const typeColor = TYPE_COLORS[data.type] || '#888';
+    const catColor  = DAMAGE_CLASS_COLOR[data.category] || '#888';
+    const catLabel  = DAMAGE_CLASS_LABEL[data.category] || '?';
+    const pow = data.power    ? `<span class="mi-pow">${data.power}</span>` : `<span class="mi-pow muted">—</span>`;
+    const acc = data.accuracy ? `<span class="mi-acc">${data.accuracy}%</span>` : `<span class="mi-acc muted">—</span>`;
+    const pp  = data.pp       ? `<span class="mi-pp muted">${data.pp}PP</span>` : '';
+
+    const item = document.createElement('div');
+    item.className = 'move-list-item';
+    item.innerHTML = `
+      <span class="mi-type-badge" style="background:${typeColor}">${data.type}</span>
+      <span class="mi-cat-badge"  style="background:${catColor}">${catLabel}</span>
+      <span class="mi-name">${data.label}</span>
+      <div class="mi-stats">
+        ${pow}
+        ${acc}
+        ${pp}
+      </div>
+    `;
+    item.addEventListener('click', (e) => {
+      e.stopPropagation();
+      selectMove(slotIdx, data.label, data);
+    });
+    listEl.appendChild(item);
+  });
+}
+
+// ─── Seleciona move ───────────────────────────
+function selectMove(slotIdx, moveName, data) {
+  sbSet.moves[slotIdx] = moveName;
+  refreshMoveDisplay(slotIdx, moveName, data);
+  closeMovePickerDropdown();
+}
+
+// ─── Atualiza display do move selecionado ─────
+async function refreshMoveDisplay(slotIdx, moveName, data) {
+  if (!data) data = await fetchMoveData(moveName);
+
+  const nameEl = document.getElementById(`sb-move-name-${slotIdx}`);
+  const typeEl = document.getElementById(`sb-move-type-${slotIdx}`);
+  const catEl  = document.getElementById(`sb-move-cat-${slotIdx}`);
+  const powEl  = document.getElementById(`sb-move-pow-${slotIdx}`);
+  const accEl  = document.getElementById(`sb-move-acc-${slotIdx}`);
+  const ppEl   = document.getElementById(`sb-move-pp-${slotIdx}`);
+  const sep1   = document.getElementById(`sb-move-sep1-${slotIdx}`);
+  const sep2   = document.getElementById(`sb-move-sep2-${slotIdx}`);
+
+  if (!nameEl) return;
+
+  if (!data) {
+    nameEl.textContent = moveName;
+    return;
+  }
+
+  const typeColor = TYPE_COLORS[data.type] || '#888';
+  const catColor  = DAMAGE_CLASS_COLOR[data.category] || '#888';
+  const catLabel  = DAMAGE_CLASS_LABEL[data.category] || '?';
+
+  nameEl.textContent = data.label || moveName;
+  typeEl.innerHTML = `<span style="background:${typeColor}" class="mi-type-badge-sm">${data.type}</span>`;
+  catEl.innerHTML  = `<span style="background:${catColor};color:#fff;font-size:8px;padding:1px 4px;border-radius:2px;font-family:var(--mono)">${catLabel}</span>`;
+
+  if (data.power) {
+    powEl.textContent = `${data.power}`;
+    powEl.title = 'Poder';
+    sep1.textContent = '·';
+  } else {
+    powEl.textContent = ''; sep1.textContent = '';
+  }
+  if (data.accuracy) {
+    accEl.textContent = `${data.accuracy}%`;
+    accEl.title = 'Acurácia';
+    sep2.textContent = '·';
+  } else {
+    accEl.textContent = ''; sep2.textContent = '';
+  }
+  ppEl.textContent = data.pp ? `${data.pp}PP` : '';
+}
+
+function clearMoveDisplay(slotIdx) {
+  const nameEl = document.getElementById(`sb-move-name-${slotIdx}`);
+  const typeEl = document.getElementById(`sb-move-type-${slotIdx}`);
+  const catEl  = document.getElementById(`sb-move-cat-${slotIdx}`);
+  const powEl  = document.getElementById(`sb-move-pow-${slotIdx}`);
+  const accEl  = document.getElementById(`sb-move-acc-${slotIdx}`);
+  const ppEl   = document.getElementById(`sb-move-pp-${slotIdx}`);
+  const sep1   = document.getElementById(`sb-move-sep1-${slotIdx}`);
+  const sep2   = document.getElementById(`sb-move-sep2-${slotIdx}`);
+  if (nameEl) nameEl.textContent = '— Nenhum move —';
+  if (typeEl) typeEl.innerHTML = '';
+  if (catEl)  catEl.innerHTML  = '';
+  if (powEl)  powEl.textContent = '';
+  if (accEl)  accEl.textContent = '';
+  if (ppEl)   ppEl.textContent  = '';
+  if (sep1)   sep1.textContent  = '';
+  if (sep2)   sep2.textContent  = '';
 }
 
 // ─── Stat Preview ─────────────────────────────
@@ -281,24 +521,22 @@ function updateStatPreview() {
     const iv    = 31;
     const level = 50;
 
-    // Formula Smogon
     let final;
     if (key === 'hp') {
       final = Math.floor(((2 * base + iv + Math.floor(ev / 4)) * level) / 100) + level + 10;
     } else {
       let val = Math.floor(((2 * base + iv + Math.floor(ev / 4)) * level) / 100) + 5;
-      if (nat && nat.up === key)   val = Math.floor(val * 1.1);
+      if (nat && nat.up   === key) val = Math.floor(val * 1.1);
       if (nat && nat.down === key) val = Math.floor(val * 0.9);
       final = val;
     }
 
-    const label = STAT_LABELS[key] || key;
-    const color = statColor(base);
-    const pct   = Math.round((base / 255) * 100);
-
+    const label  = STAT_LABELS[key] || key;
+    const color  = statColor(base);
+    const pct    = Math.round((base / 255) * 100);
     const natMark = nat
-      ? (nat.up === key ? '<span style="color:#c8ff00;font-size:9px"> ▲</span>'
-        : nat.down === key ? '<span style="color:#ff6b35;font-size:9px"> ▼</span>' : '')
+      ? (nat.up   === key ? '<span style="color:#c8ff00;font-size:9px"> ▲</span>'
+       : nat.down === key ? '<span style="color:#ff6b35;font-size:9px"> ▼</span>' : '')
       : '';
 
     const row = document.createElement('div');
@@ -306,9 +544,7 @@ function updateStatPreview() {
     row.innerHTML = `
       <div class="sb-stat-label">${label}${natMark}</div>
       <div class="sb-stat-base-val">${base}</div>
-      <div class="sb-stat-track">
-        <div class="sb-stat-fill" style="width:${pct}%;background:${color}"></div>
-      </div>
+      <div class="sb-stat-track"><div class="sb-stat-fill" style="width:${pct}%;background:${color}"></div></div>
       <div class="sb-stat-final-val">${final}</div>
     `;
     container.appendChild(row);
@@ -319,10 +555,8 @@ function updateStatPreview() {
 function renderFormatTabs() {
   const tabs = document.getElementById('sb-format-tabs');
   tabs.innerHTML = SB_FORMATS.map(f =>
-    `<button class="sb-format-tab ${f.key === sbBuildFmt ? 'active' : ''}"
-             data-fmt="${f.key}">${f.label}</button>`
+    `<button class="sb-format-tab ${f.key === sbBuildFmt ? 'active' : ''}" data-fmt="${f.key}">${f.label}</button>`
   ).join('');
-
   tabs.querySelectorAll('.sb-format-tab').forEach(btn => {
     btn.addEventListener('click', () => {
       sbBuildFmt = btn.dataset.fmt;
@@ -333,148 +567,94 @@ function renderFormatTabs() {
   });
 }
 
-// ─── Carrega builds do Smogon ─────────────────
+// ─── Builds do Smogon ─────────────────────────
 async function loadBuilds(fmt) {
-  const pname = sbPokemon.name.toLowerCase().replace(/-/g, '');
+  const pname    = sbPokemon.name.toLowerCase().replace(/-/g, '');
   const cacheKey = `${fmt}:${pname}`;
-  const list = document.getElementById('sb-builds-list');
+  const list     = document.getElementById('sb-builds-list');
 
-  if (sbBuildsCache[cacheKey]) {
-    renderBuilds(sbBuildsCache[cacheKey]);
-    return;
-  }
-
+  if (sbBuildsCache[cacheKey]) { renderBuilds(sbBuildsCache[cacheKey]); return; }
   list.innerHTML = '<div class="sb-build-loading">Buscando builds...</div>';
 
   try {
-    // Smogon exporta seus sets via um JSON público
-    const url = `https://smogon.com/dex/api/analyses/${sbPokemon.name.toLowerCase()}/${fmt}/`;
-    const r   = await fetch(url);
-
+    const url  = `https://smogon.com/dex/api/analyses/${sbPokemon.name.toLowerCase()}/${fmt}/`;
+    const r    = await fetch(url);
     if (!r.ok) throw new Error('not found');
     const data = await r.json();
-
-    const builds = parseSmogonData(data, fmt);
+    const builds = parseSmogonData(data);
     sbBuildsCache[cacheKey] = builds;
     renderBuilds(builds);
-  } catch(e) {
-    // Fallback: gera builds baseadas nos stats
-    const builds = generateFallbackBuilds(sbPokemon, fmt);
+  } catch {
+    const builds = generateFallbackBuilds(sbPokemon);
     sbBuildsCache[cacheKey] = builds;
     renderBuilds(builds);
   }
 }
 
-function parseSmogonData(data, fmt) {
-  // A API do Smogon retorna analyses com sets nomeados
+function parseSmogonData(data) {
   const builds = [];
-  const strategies = data?.strategies || [];
-
-  strategies.forEach(strat => {
+  (data?.strategies || []).forEach(strat => {
     (strat.sets || []).forEach(set => {
       builds.push({
         name:    set.name || strat.name || 'Unnamed',
-        item:    Array.isArray(set.item)    ? set.item[0]    : (set.item    || ''),
-        ability: Array.isArray(set.ability) ? set.ability[0] : (set.ability || ''),
-        nature:  Array.isArray(set.nature)  ? set.nature[0]  : (set.nature  || ''),
+        item:    Array.isArray(set.item)      ? set.item[0]      : (set.item    || ''),
+        ability: Array.isArray(set.ability)   ? set.ability[0]   : (set.ability || ''),
+        nature:  Array.isArray(set.nature)    ? set.nature[0]    : (set.nature  || ''),
         evs:     set.evs || {},
-        moves:   (set.moveslots || []).map(slot =>
-          Array.isArray(slot) ? slot[0] : (slot || '')
-        ).filter(Boolean).slice(0,4),
-        tera:    Array.isArray(set.teratype) ? set.teratype[0] : (set.teratype || ''),
+        moves:   (set.moveslots || []).map(slot => Array.isArray(slot) ? slot[0] : (slot || '')).filter(Boolean).slice(0,4),
+        tera:    Array.isArray(set.teratype)  ? set.teratype[0]  : (set.teratype || ''),
       });
     });
   });
-
   return builds;
 }
 
-function generateFallbackBuilds(pokemon, fmt) {
-  // Gera builds heurísticas baseadas nos stats
+function generateFallbackBuilds(pokemon) {
   const { nature, evs, role } = suggestNatureAndEVs(pokemon);
-  const moves = suggestMoves(pokemon, role);
-  const types = pokemon.types.map(t => t.type.name);
-
-  const stats = {};
+  const moves    = suggestMoves(pokemon, role);
+  const types    = pokemon.types.map(t => t.type.name);
+  const stats    = {};
   pokemon.stats.forEach(s => { stats[s.stat.name] = s.base_stat; });
-  const isPhys = (stats['attack'] || 0) >= (stats['special-attack'] || 0);
-  const ability = pokemon.abilities?.[0]?.ability?.name || '';
-  const item1 = isPhys ? 'Choice Scarf' : 'Choice Specs';
-  const item2 = isPhys ? 'Life Orb' : 'Life Orb';
+  const isPhys   = (stats['attack'] || 0) >= (stats['special-attack'] || 0);
+  const ability  = pokemon.abilities?.[0]?.ability?.name || '';
 
   const builds = [
-    {
-      name: role,
-      item: item2,
-      ability,
-      nature,
-      evs: parseEVString(evs),
-      moves: moves.map(m => m.replace('- ','')),
-      tera: types[0],
-    },
-    {
-      name: isPhys ? 'Choice Scarf' : 'Choice Specs',
-      item: item1,
-      ability,
+    { name: role, item: 'Life Orb', ability, nature, evs: parseEVString(evs), moves: moves.map(m => m.replace('- ','')), tera: types[0] },
+    { name: isPhys ? 'Choice Scarf' : 'Choice Specs', item: isPhys ? 'Choice Scarf' : 'Choice Specs', ability,
       nature: isPhys ? 'jolly' : 'timid',
       evs: parseEVString(isPhys ? '252 Atk / 4 Def / 252 Spe' : '252 SpA / 4 Def / 252 Spe'),
-      moves: moves.map(m => m.replace('- ','')),
-      tera: types[0],
-    },
+      moves: moves.map(m => m.replace('- ','')), tera: types[0] },
   ];
 
-  // Adiciona build defensiva se tiver stats para isso
   const defTotal = (stats['defense']||0) + (stats['special-defense']||0) + (stats['hp']||0);
   if (defTotal > 220) {
-    const { nature: dn, evs: de, role: dr } = suggestNatureAndEVs({
-      ...pokemon,
-      stats: pokemon.stats.map(s => {
-        if (s.stat.name === 'speed') return { ...s, base_stat: 50 };
-        if (s.stat.name === 'defense') return { ...s, base_stat: 200 };
-        return s;
-      })
-    });
-    builds.push({
-      name: 'Defensive',
-      item: 'Leftovers',
-      ability,
-      nature: dn,
+    builds.push({ name: 'Defensive', item: 'Leftovers', ability,
+      nature: isPhys ? 'impish' : 'calm',
       evs: parseEVString('252 HP / 252 Def / 4 SpD'),
-      moves: [moves[0].replace('- ',''), 'Protect', 'Stealth Rock', 'Roost'].filter(Boolean),
-      tera: types[0],
-    });
+      moves: [moves[0].replace('- ',''), 'Protect', 'Stealth Rock', 'Roost'],
+      tera: types[0] });
   }
-
   return builds;
 }
 
-// ─── Renderiza lista de builds ────────────────
 function renderBuilds(builds) {
   const list = document.getElementById('sb-builds-list');
-
   if (!builds.length) {
-    list.innerHTML = `
-      <div class="sb-build-empty">
-        Nenhuma build encontrada para este Pokémon neste formato.<br>
-        <span style="font-size:11px;opacity:.5">Tente outro formato ou edite manualmente.</span>
-      </div>`;
+    list.innerHTML = `<div class="sb-build-empty">Nenhuma build encontrada.<br><span style="font-size:11px;opacity:.5">Tente outro formato.</span></div>`;
     return;
   }
-
   list.innerHTML = '';
-  builds.forEach((build, idx) => {
-    const card = document.createElement('div');
+  builds.forEach(build => {
+    const card   = document.createElement('div');
     card.className = 'sb-build-card';
-
-    const evStr = formatEVString(build.evs);
-    const tera  = build.tera ? `<span>Tera: ${capitalize(build.tera)}</span>` : '';
-
+    const evStr  = formatEVString(build.evs);
+    const tera   = build.tera ? `<span>Tera: ${capitalize(build.tera)}</span>` : '';
     card.innerHTML = `
       <div class="sb-build-name">${build.name}</div>
       <div class="sb-build-meta">
-        ${build.item    ? `<span>@ ${capitalize(build.item)}</span>` : ''}
-        ${build.ability ? `<span>${capitalize(build.ability)}</span>` : ''}
-        ${build.nature  ? `<span>${capitalize(build.nature)}</span>` : ''}
+        ${build.item    ? `<span>@ ${capitalize(build.item)}</span>`   : ''}
+        ${build.ability ? `<span>${capitalize(build.ability)}</span>`   : ''}
+        ${build.nature  ? `<span>${capitalize(build.nature)}</span>`    : ''}
         ${tera}
       </div>
       <div class="sb-build-meta" style="margin-bottom:6px">
@@ -482,20 +662,16 @@ function renderBuilds(builds) {
       </div>
       <div class="sb-build-moves">
         ${(build.moves || []).map(m => `<div class="sb-build-move">· ${m}</div>`).join('')}
-      </div>
-    `;
-
+      </div>`;
     card.addEventListener('click', () => {
       applyBuild(build);
       list.querySelectorAll('.sb-build-card').forEach(c => c.classList.remove('active'));
       card.classList.add('active');
     });
-
     list.appendChild(card);
   });
 }
 
-// ─── Aplica build ao editor ───────────────────
 function applyBuild(build) {
   sbSet.nature  = (build.nature  || sbSet.nature).toLowerCase();
   sbSet.item    = build.item    || sbSet.item;
@@ -504,31 +680,30 @@ function applyBuild(build) {
   if (build.evs)  sbSet.evs  = { ...build.evs };
   if (build.tera) sbSet.tera = build.tera.toLowerCase();
 
-  // Re-renderiza os campos editáveis
   document.getElementById('sb-item').value = sbSet.item;
-  updateItemIcon(sbSet.item);
 
   const abilSelect = document.getElementById('sb-ability');
   if (Array.from(abilSelect.options).some(o => o.value === sbSet.ability)) {
     abilSelect.value = sbSet.ability;
   }
 
-  // Nature
   document.querySelectorAll('.nature-btn').forEach(b => {
     b.classList.toggle('active', b.dataset.nature === sbSet.nature);
   });
-
-  // Tera
   document.querySelectorAll('.tera-btn').forEach(b => {
     b.classList.toggle('active', b.dataset.tera === sbSet.tera);
   });
 
-  // EVs — re-render sliders
   renderEVGrid();
 
-  // Moves
-  document.querySelectorAll('.move-input').forEach((inp, i) => {
-    inp.value = sbSet.moves[i] || '';
+  // Re-renderiza moves com displays atualizados
+  sbSet.moves.forEach((m, i) => {
+    clearMoveDisplay(i);
+    if (m) refreshMoveDisplay(i, m);
+    const nameEl = document.getElementById(`sb-move-name-${i}`);
+    if (nameEl && !document.getElementById(`sb-move-type-${i}`)?.innerHTML) {
+      nameEl.textContent = m || '— Nenhum move —';
+    }
   });
 
   updateStatPreview();
@@ -537,17 +712,11 @@ function applyBuild(build) {
 
 // ─── Salva o set ──────────────────────────────
 function saveSet() {
-  // Coleta estado final dos inputs
   sbSet.nickname = document.getElementById('sb-nickname').value.trim();
   sbSet.item     = document.getElementById('sb-item').value.trim();
   sbSet.ability  = document.getElementById('sb-ability').value;
+  // moves já estão em sbSet.moves atualizados pelo picker
 
-  sbSet.moves = [];
-  document.querySelectorAll('.move-input').forEach(inp => {
-    sbSet.moves.push(inp.value.trim());
-  });
-
-  // Salva no objeto global teamSets
   teamSets[sbPokemon.id] = JSON.parse(JSON.stringify(sbSet));
   saveTeamToStorage();
   closeSetBuilder();
@@ -555,25 +724,6 @@ function saveSet() {
 }
 
 // ─── Helpers ─────────────────────────────────
-function itemIconUrl(item) {
-  if (!item) return '';
-  const name = item.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
-  return `https://play.pokemonshowdown.com/sprites/items/${name}.png`;
-}
-
-function updateItemIcon(item) {
-  const img = document.getElementById('sb-item-icon');
-  const url = itemIconUrl(item);
-  if (!url) {
-    img.classList.add('hidden');
-    img.src = '';
-    return;
-  }
-  img.onload = () => img.classList.remove('hidden');
-  img.onerror = () => img.classList.add('hidden');
-  img.src = url;
-}
-
 function parseEVString(str) {
   const evs = {};
   STAT_ORDER.forEach(s => evs[s] = 0);
@@ -589,17 +739,13 @@ function parseEVString(str) {
 function formatEVString(evs) {
   if (!evs) return '';
   const map = { 'attack':'Atk','defense':'Def','special-attack':'SpA','special-defense':'SpD','speed':'Spe','hp':'HP' };
-  return STAT_ORDER
-    .filter(s => (evs[s] || 0) > 0)
-    .map(s => `${evs[s]} ${map[s]}`)
-    .join(' / ');
+  return STAT_ORDER.filter(s => (evs[s] || 0) > 0).map(s => `${evs[s]} ${map[s]}`).join(' / ');
 }
 
-// ─── Init eventos do setbuilder ───────────────
+// ─── Init ─────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('sb-back').addEventListener('click', () => {
     if (confirm('Descartar alterações?')) closeSetBuilder();
   });
-
   document.getElementById('sb-save').addEventListener('click', saveSet);
 });
