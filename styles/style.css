@@ -919,14 +919,24 @@ select:focus { border-color: var(--accent); }
   .team-grid { grid-template-columns: repeat(3, 1fr); }
   .analysis-grid { grid-template-columns: 1fr; }
   .stats-grid { grid-template-columns: repeat(3, 1fr); }
-  .header-inner { gap: 1rem; }
-  .nav { display: none; }
+  .header-inner { height:auto; min-height:60px; padding:6px 1rem 8px; gap:6px 1rem; flex-wrap:wrap; }
+  .logo { min-width:0; }
+  .logo-image { width:160px; max-height:46px; }
+  .nav { order:3; display:flex; flex:1 0 100%; width:100%; margin:0; overflow-x:auto; scrollbar-width:none; }
+  .nav::-webkit-scrollbar { display:none; }
+  .nav-link { flex:1 0 auto; text-align:center; padding:9px 10px; font-size:9px; }
+  .format-selector { margin-left:auto; }
 }
 
 @media (max-width: 500px) {
   .main { padding: 1rem; }
   .team-grid { grid-template-columns: repeat(2, 1fr); }
   .stats-grid { grid-template-columns: repeat(2, 1fr); }
+  .header-inner { padding-left:.75rem; padding-right:.75rem; }
+  .logo-image { width:132px; max-height:40px; }
+  .format-label { display:none; }
+  .format-selector select { max-width:132px; font-size:9px; padding-left:7px; padding-right:22px; }
+  .nav-link { padding:8px 7px; font-size:8px; }
 }
 
 /* ─── ANIMATIONS ─── */
