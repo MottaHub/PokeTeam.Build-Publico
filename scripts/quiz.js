@@ -249,6 +249,66 @@
     })).sort((a, b) => a.distance - b.distance)[0].name;
   }
 
+  function shareMessage(winner, nature, profile) {
+    const traits=profile.map((value,index)=>value>.25?AXES[index][1]:value<-.25?AXES[index][0]:'equilibrado').join(', ');
+    return `Descobri meu Pokémon no Quiz de Personalidade do PokéBuild!\n\n${winner.name.replace(/-/g,' ')} — Nature ${nature}\n${NATURE_DESCRIPTIONS[nature]}\n${winner.match.toFixed(1)}% de compatibilidade\nMeu perfil: ${traits}.\n\nQual Pokémon combina com você? ${window.location.href.split('#')[0]}`;
+  }
+
+  function loadShareArtwork(id) {
+    return new Promise(resolve=>{
+      const artwork=new Image(); artwork.crossOrigin='anonymous';
+      artwork.onload=()=>resolve(artwork); artwork.onerror=()=>resolve(null);
+      artwork.src=image(id,true);
+    });
+  }
+
+  async function makeShareCard(winner, nature, profile) {
+    const canvas=document.createElement('canvas'); canvas.width=1080; canvas.height=1350;
+    const context=canvas.getContext('2d');
+    const background=context.createLinearGradient(0,0,1080,1350);
+    background.addColorStop(0,'#252137'); background.addColorStop(1,'#111019');
+    context.fillStyle=background; context.fillRect(0,0,1080,1350);
+    context.strokeStyle='rgba(170,158,232,.55)'; context.lineWidth=3; context.strokeRect(28,28,1024,1294);
+    context.fillStyle='#aaa0e8'; context.font='700 28px monospace'; context.fillText('POKÉBUILD  ·  QUIZ DE PERSONALIDADE',72,105);
+    context.fillStyle='#a5a1b6'; context.font='24px sans-serif'; context.fillText('POKÉMON QUE MAIS COMBINA COM VOCÊ',72,165);
+    const artwork=await loadShareArtwork(winner.id);
+    if(artwork) context.drawImage(artwork,300,205,480,480);
+    context.textAlign='center'; context.fillStyle='#f5f3ff'; context.font='700 68px sans-serif';
+    context.fillText(winner.name.replace(/-/g,' ').replace(/\b\w/g,char=>char.toUpperCase()),540,770);
+    context.fillStyle='#aaa0e8'; context.font='700 34px monospace'; context.fillText(`${winner.match.toFixed(1)}%  ·  NATURE ${nature.toUpperCase()}`,540,835);
+    context.fillStyle='#d2cfea'; context.font='28px sans-serif';
+    const profileText=profile.map((value,index)=>value>.25?AXES[index][1]:value<-.25?AXES[index][0]:'equilibrado').join('  ·  ');
+    const words=profileText.split(' '); let line='', y=930;
+    words.forEach(word=>{const test=line?`${line} ${word}`:word;if(context.measureText(test).width>850){context.fillText(line,540,y);line=word;y+=42;}else line=test;});
+    if(line) context.fillText(line,540,y);
+    context.fillStyle='#a5a1b6'; context.font='22px sans-serif'; context.fillText(`Faça o quiz em ${window.location.host}`,540,1245);
+    return new Promise((resolve,reject)=>canvas.toBlob(blob=>blob?resolve(blob):reject(new Error('Não foi possível gerar a imagem.')),'image/png'));
+  }
+
+  async function shareResult(winner, nature, profile) {
+    const button=document.getElementById('quiz-share');
+    const original=button.textContent;
+    button.disabled=true; button.textContent='Preparando resultado…';
+    try {
+      const [blob]=await Promise.all([makeShareCard(winner,nature,profile)]);
+      const text=shareMessage(winner,nature,profile);
+      const file=new File([blob],`pokebuild-${winner.name}-resultado.png`,{type:'image/png'});
+      if(navigator.share) {
+        if(navigator.canShare?.({files:[file]})) await navigator.share({title:'Meu resultado no PokéBuild',text,files:[file]});
+        else await navigator.share({title:'Meu resultado no PokéBuild',text});
+      } else {
+        try { await navigator.clipboard.writeText(text); }
+        catch { window.prompt('Copie o texto do seu resultado:',text); }
+        const link=document.createElement('a'); link.href=URL.createObjectURL(blob); link.download=file.name; link.click();
+        setTimeout(()=>URL.revokeObjectURL(link.href),1000);
+        button.textContent='Texto copiado · imagem baixada';
+        setTimeout(()=>{if(button.isConnected)button.textContent=original;},3500);
+      }
+    } catch(error) {
+      if(error.name!=='AbortError') { console.error('Falha ao compartilhar resultado',error); button.textContent='Não foi possível compartilhar'; setTimeout(()=>{if(button.isConnected)button.textContent=original;},2500); }
+    } finally { button.disabled=false; }
+  }
+
   function showResult() {
     const profile=[0,0,0,0], counts=[0,0,0,0];
     questions.forEach((question,index)=>{profile[question.axis]+=answers[index]*question.sign;counts[question.axis]++;});
@@ -259,8 +319,9 @@
     const interpretation=winnerProfile.map((value,index)=>Math.abs(value)>.45?(value<0?AXES[index][0]:AXES[index][1]):null).filter(Boolean).slice(0,2).join(' e ');
     const insight=usingIndividualData?(interpretation?`As descrições da Pokédex e os dados individuais apontam para um perfil ${interpretation.toLowerCase()}.`:'As pistas individuais deste Pokémon ficam próximas do equilíbrio nos quatro eixos do quiz.'):'Os perfis individuais não carregaram; este resultado foi comparado principalmente pelos tipos.';
     const methodology=usingIndividualData?'O quiz interpreta descrições da Pokédex e combina essas pistas com habilidades, atributos e tipos. Os traços não são uma classificação oficial.':'Este resultado usa os tipos como referência porque os dados individuais não ficaram disponíveis.';
-    host.innerHTML=`<div class="quiz-result-layout"><section class="quiz-result-hero"><span class="eyebrow">SEU RESULTADO · ${questions.length} PERGUNTAS</span><div class="quiz-result-main"><div class="quiz-result-mon"><img class="quiz-result-sprite" src="${image(winner.id,true)}" onerror="this.onerror=null;this.src='${image(winner.id)}'" alt="${escapeHtml(winner.name)}"><div class="quiz-result-match"><strong>${winner.match.toFixed(1)}%</strong><span>MAIS COMPATÍVEL</span></div></div><div class="quiz-result-copy"><span class="eyebrow">POKÉMON QUE MAIS COMBINA</span><h2>${escapeHtml(winner.name.replace(/-/g,' '))}</h2><div class="quiz-nature"><span>Sua Nature</span><strong>${nature}</strong></div><p class="quiz-nature-description">${escapeHtml(NATURE_DESCRIPTIONS[nature])}</p><p>${insight}</p><div class="quiz-type-list">${winner.types.map(type=>`<span>${type}</span>`).join('')}</div></div></div></section><section class="quiz-result-profile"><h3>SEU PERFIL</h3><div class="quiz-result-axes">${axes}</div><p>${methodology}</p><p class="quiz-nature-note">A Nature resume, de forma divertida, os traços de personalidade sugeridos pelas suas respostas. Nos jogos, ela também influencia atributos de batalha.</p></section></div><section class="quiz-other-matches"><div class="quiz-other-heading"><div><span class="eyebrow">POKÉMON COM PERFIL PARECIDO</span><h3>Outras combinações próximas</h3></div><span>${pokemon.length.toLocaleString('pt-BR')} Pokémon comparados</span></div><div class="quiz-match-list">${others}</div></section><div class="quiz-controls quiz-result-controls"><button class="action-btn" id="quiz-change-length">← Mudar duração</button><button class="copy-btn" id="quiz-restart">Refazer com ${questions.length} perguntas</button></div>`;
+    host.innerHTML=`<div class="quiz-result-layout"><section class="quiz-result-hero"><span class="eyebrow">SEU RESULTADO · ${questions.length} PERGUNTAS</span><div class="quiz-result-main"><div class="quiz-result-mon"><img class="quiz-result-sprite" src="${image(winner.id,true)}" onerror="this.onerror=null;this.src='${image(winner.id)}'" alt="${escapeHtml(winner.name)}"><div class="quiz-result-match"><strong>${winner.match.toFixed(1)}%</strong><span>MAIS COMPATÍVEL</span></div></div><div class="quiz-result-copy"><span class="eyebrow">POKÉMON QUE MAIS COMBINA</span><h2>${escapeHtml(winner.name.replace(/-/g,' '))}</h2><div class="quiz-nature"><span>Sua Nature</span><strong>${nature}</strong></div><p class="quiz-nature-description">${escapeHtml(NATURE_DESCRIPTIONS[nature])}</p><p>${insight}</p><div class="quiz-type-list">${winner.types.map(type=>`<span>${type}</span>`).join('')}</div></div></div></section><section class="quiz-result-profile"><h3>SEU PERFIL</h3><div class="quiz-result-axes">${axes}</div><p>${methodology}</p><p class="quiz-nature-note">A Nature resume, de forma divertida, os traços de personalidade sugeridos pelas suas respostas. Nos jogos, ela também influencia atributos de batalha.</p></section></div><section class="quiz-other-matches"><div class="quiz-other-heading"><div><span class="eyebrow">POKÉMON COM PERFIL PARECIDO</span><h3>Outras combinações próximas</h3></div><span>${pokemon.length.toLocaleString('pt-BR')} Pokémon comparados</span></div><div class="quiz-match-list">${others}</div></section><div class="quiz-controls quiz-result-controls"><button class="action-btn" id="quiz-change-length">← Mudar duração</button><button class="copy-btn" id="quiz-share">↗ Compartilhar resultado</button><button class="copy-btn" id="quiz-restart">Refazer com ${questions.length} perguntas</button></div>`;
     document.getElementById('quiz-change-length').addEventListener('click',()=>renderStart());
+    document.getElementById('quiz-share').addEventListener('click',()=>shareResult(winner,nature,profile));
     document.getElementById('quiz-restart').addEventListener('click',startQuiz);
     host.scrollIntoView({behavior:'smooth',block:'start'});
   }
