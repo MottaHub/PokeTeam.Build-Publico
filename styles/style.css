@@ -207,7 +207,7 @@ body.show-tier-list .format-selector, body.show-favorites .format-selector { dis
 .tierlist-controls { display:flex; align-items:center; gap:9px; }
 .tierlist-controls label { color:var(--muted); font:10px var(--mono); }
 .tierlist-controls select { min-width:190px; height:38px; }
-.tierlist-instructions { font-size:12px; margin-top:-20px; }
+.tierlist-instructions { font-size:12px; margin-top:12px; }
 .tierlist-board { display:grid; gap:7px; }
 .tierlist-catalog { display:grid; grid-template-columns:repeat(auto-fill,minmax(235px,1fr)); gap:14px; margin-top:4px; }
 .tierlist-card { min-height:190px; position:relative; display:flex; flex-direction:column; align-items:flex-start; justify-content:flex-end; gap:8px; overflow:hidden; padding:20px; text-align:left; color:var(--text); background:linear-gradient(145deg,#25252b,#141416); border:1px solid var(--border2); border-radius:var(--radius-lg); cursor:pointer; transition:transform .16s,border-color .16s,background .16s; }
@@ -227,6 +227,14 @@ body.show-tier-list .format-selector, body.show-favorites .format-selector { dis
 .tierlist-selection { min-height:110px; display:flex; flex-wrap:wrap; align-content:flex-start; gap:4px; padding:8px; border:1px dashed var(--border2); border-radius:var(--radius); transition:background .12s; }
 .tierlist-selection.drag-over { background:rgba(170,158,232,.12); }
 .tierlist-complete { align-self:center; margin:auto; color:var(--accent); font-size:12px; }
+.tierlist-assignment { display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:10px; margin-top:12px; padding:12px; border:1px solid var(--border2); border-radius:var(--radius); background:var(--bg3); }
+.tierlist-assignment-title { color:var(--text); font:12px var(--mono); text-transform:capitalize; }
+.tierlist-assignment-actions { display:flex; flex-wrap:wrap; gap:6px; }
+.tier-choose,.tier-choose-cancel { min-width:42px; min-height:38px; border:1px solid transparent; border-radius:var(--radius); cursor:pointer; color:#17151e; font:700 14px var(--mono); }
+.tier-choose:hover { filter:brightness(1.12); transform:translateY(-1px); }
+.tier-choose-unranked { padding:0 10px; background:var(--bg4); color:var(--text); border-color:var(--border2); font-size:10px; }
+.tier-choose-cancel { min-width:36px; background:transparent; border-color:var(--border2); color:var(--muted); font-size:20px; }
+.tier-pokemon.selected-for-tier { border-color:var(--accent); background:rgba(170,158,232,.13); }
 .tier-row { min-height:105px; display:grid; grid-template-columns:76px minmax(0,1fr); border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; background:var(--bg2); }
 .tier-label { display:grid; place-items:center; font:700 26px var(--mono); color:#151515; }
 .tier-s { background:#ff5964; }.tier-a { background:#ff9a55; }.tier-b { background:#ffd45a; }.tier-c { background:#b5d96b; }.tier-d { background:#69c99c; }.tier-f { background:#75b5ed; }
@@ -238,7 +246,7 @@ body.show-tier-list .format-selector, body.show-favorites .format-selector { dis
 .tier-pokemon:active { cursor:grabbing; }
 .tier-pokemon img { width:62px; height:62px; image-rendering:pixelated; }
 .unranked-row .tier-dropzone { min-height:130px; }
-@media(max-width:760px) { .tierlist-heading { align-items:flex-start; flex-direction:column; }.tierlist-controls { width:100%; flex-wrap:wrap; }.tierlist-controls select { flex:1; min-width:150px; }.tierlist-instructions { margin-top:-14px; }.tier-row { grid-template-columns:54px minmax(0,1fr); min-height:90px; }.tier-label { font-size:20px; }.tier-dropzone { min-height:88px; gap:1px; padding:3px; }.tier-pokemon { width:67px; min-height:78px; font-size:9px; }.tier-pokemon img { width:54px; height:54px; } }
+@media(max-width:760px) { .tierlist-heading { align-items:flex-start; flex-direction:column; gap:8px; }.tierlist-heading > .action-btn { margin-top:4px; }.tierlist-controls { width:100%; flex-wrap:wrap; }.tierlist-controls select { flex:1; min-width:150px; }.tierlist-instructions { margin-top:10px; line-height:1.5; }.tier-row { grid-template-columns:54px minmax(0,1fr); min-height:90px; }.tier-label { font-size:20px; }.tier-dropzone { min-height:88px; gap:1px; padding:3px; }.tier-pokemon { width:67px; min-height:78px; font-size:9px; touch-action:manipulation; }.tier-pokemon img { width:54px; height:54px; }.tierlist-assignment { align-items:flex-start; flex-direction:column; }.tierlist-assignment-actions { width:100%; }.tier-choose { flex:1; min-width:36px; min-height:44px; }.tier-choose-unranked { flex:2; } }
 
 .format-selector {
   margin-left: auto;

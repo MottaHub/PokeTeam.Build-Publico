@@ -17,6 +17,8 @@
   let state = readState();
   let activeList = 'starters';
   let draggedId = null;
+  let selectedPokemonId = null;
+  let ignoreClickUntil = 0;
 
   function readState() { try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}; } catch { return {}; } }
   function save() { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
@@ -34,7 +36,7 @@
     return data;
   }
   function getName(id) { return CATALOG[activeList].pokemon.find(item => item[0] === id)?.[1] || `Pokémon ${id}`; }
-  function card(id) { return `<button class="tier-pokemon" draggable="true" data-pokemon="${id}" title="${getName(id)}"><img loading="lazy" src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${id}.png" alt=""><span>${getName(id)}</span></button>`; }
+  function card(id) { const draggable = window.matchMedia('(max-width: 760px), (pointer: coarse)').matches ? 'false' : 'true'; return `<button class="tier-pokemon" draggable="${draggable}" data-pokemon="${id}" title="${getName(id)}"><img loading="lazy" src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${id}.png" alt=""><span>${getName(id)}</span></button>`; }
   function renderCatalog() {
     document.getElementById('tierlist-catalog').innerHTML = Object.entries(CATALOG).map(([key, list], index) => `<button class="tierlist-card tierlist-card-${index + 1}" data-list="${key}"><span class="tierlist-card-icon">${['✦','♡','◈','⚡'][index]}</span><span class="tierlist-card-label">TIER LIST</span><strong>${list.title}</strong><small>${list.pokemon.length} Pokémon</small><span class="tierlist-card-arrow">→</span></button>`).join('');
     document.querySelectorAll('.tierlist-card').forEach(button => button.addEventListener('click', () => {
@@ -46,6 +48,7 @@
     }));
   }
   function showCatalog() {
+    selectedPokemonId = null;
     document.getElementById('tierlist-editor').classList.add('hidden');
     document.getElementById('tierlist-home').classList.remove('hidden');
     document.getElementById('tier-list-view').scrollIntoView({ behavior:'smooth', block:'start' });
@@ -58,7 +61,16 @@
     document.getElementById('tierlist-board').innerHTML = rows;
     document.getElementById('tierlist-selection').innerHTML = data.unranked.map(card).join('') || '<span class="tierlist-complete">Todos os Pokémon já estão em um tier.</span>';
     document.getElementById('tierlist-remaining').textContent = data.unranked.length;
+    renderAssignment();
     bindBoard(); save();
+  }
+  function renderAssignment() {
+    const box = document.getElementById('tierlist-assignment');
+    if (!selectedPokemonId) { box.classList.add('hidden'); box.innerHTML = ''; document.querySelectorAll('.tier-pokemon').forEach(card => card.classList.remove('selected-for-tier')); return; }
+    box.classList.remove('hidden');
+    box.innerHTML = `<div class="tierlist-assignment-title">${getName(selectedPokemonId)} — escolha o tier</div><div class="tierlist-assignment-actions">${RANKS.map(rank => `<button class="tier-choose tier-${rank.toLowerCase()}" data-rank="${rank}">${rank}</button>`).join('')}<button class="tier-choose tier-choose-unranked" data-rank="unranked">Sem tier</button><button class="tier-choose-cancel" aria-label="Fechar">×</button></div>`;
+    box.querySelectorAll('[data-rank]').forEach(button => button.addEventListener('click', () => move(selectedPokemonId, button.dataset.rank)));
+    box.querySelector('.tier-choose-cancel').addEventListener('click', () => { selectedPokemonId = null; renderAssignment(); });
   }
   function move(id, destination, beforeId = null) {
     const data = current();
@@ -69,17 +81,19 @@
       const index = all.indexOf(beforeId);
       all.splice(index < 0 ? all.length : index, 0, id);
     } else all.push(id);
+    selectedPokemonId = null;
     render();
   }
   function bindBoard() {
     document.querySelectorAll('#tierlist-editor .tier-pokemon').forEach(item => {
-      item.addEventListener('dragstart', event => { draggedId = Number(item.dataset.pokemon); event.dataTransfer.setData('text/plain', String(draggedId)); event.dataTransfer.effectAllowed = 'move'; });
+      item.addEventListener('dragstart', event => { draggedId = Number(item.dataset.pokemon); ignoreClickUntil = Date.now() + 700; event.dataTransfer.setData('text/plain', String(draggedId)); event.dataTransfer.effectAllowed = 'move'; });
       item.addEventListener('click', () => {
-        if (draggedId !== null) { draggedId = null; return; }
-        const id = Number(item.dataset.pokemon), data = current();
-        const rank = RANKS.find(key => data.ranks[key].includes(id));
-        const next = rank ? RANKS[(RANKS.indexOf(rank) + 1) % (RANKS.length + 1)] : RANKS[0];
-        move(id, next || 'unranked');
+        if (Date.now() < ignoreClickUntil) { draggedId = null; return; }
+        const id = Number(item.dataset.pokemon);
+        selectedPokemonId = selectedPokemonId === id ? null : id;
+        document.querySelectorAll('.tier-pokemon').forEach(card => card.classList.toggle('selected-for-tier', Number(card.dataset.pokemon) === selectedPokemonId));
+        renderAssignment();
+        if (selectedPokemonId) document.getElementById('tierlist-assignment').scrollIntoView({ behavior:'smooth', block:'nearest' });
       });
     });
     document.querySelectorAll('#tierlist-editor .tier-dropzone, #tierlist-selection').forEach(zone => {
