@@ -117,7 +117,8 @@
       const isTierList = viewId === 'tier-list-view';
       document.body.classList.toggle('show-tier-list', isTierList);
       document.body.classList.toggle('show-favorites', viewId === 'favorites-view');
-      ['teambuilder-view', 'tier-list-view', 'favorites-view'].forEach(id => document.getElementById(id).classList.toggle('hidden', id !== viewId));
+      ['teambuilder-view', 'tier-list-view', 'favorites-view', 'quiz-view'].forEach(id => document.getElementById(id).classList.toggle('hidden', id !== viewId));
+      document.body.classList.toggle('show-quiz', viewId === 'quiz-view');
       if (isTierList) showCatalog();
       if (viewId === 'favorites-view') window.openFavorites?.();
     }));
