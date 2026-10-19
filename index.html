@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>PokeTeam Builder</title>
+  <title>PokéBuild — Pokémon Team Builder</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="styles/style.css" />
@@ -13,14 +13,12 @@
 
   <header class="header">
     <div class="header-inner">
-      <div class="logo">
-        <span class="logo-icon">◈</span>
-        <span class="logo-text">POKETEAM<span class="logo-accent">.BUILD</span></span>
-      </div>
+      <a class="logo" href="#teambuilder" aria-label="PokéBuild — início"><img class="logo-image" src="assets/pokebuild-logo.png" alt="PokéBuild" /></a>
       <nav class="nav">
-        <a href="#" class="nav-link active">Teambuilder</a>
+        <a href="#teambuilder" class="nav-link active" data-view="teambuilder-view">Teambuilder</a>
         <a href="#" class="nav-link disabled">Batalha</a>
-        <a href="#" class="nav-link disabled">Tier List</a>
+        <a href="#tier-list" class="nav-link" data-view="tier-list-view">Tier List</a>
+        <a href="#favoritos" class="nav-link" data-view="favorites-view">Favoritos</a>
         <a href="#" class="nav-link disabled">Meta</a>
       </nav>
       <div class="format-selector">
@@ -37,7 +35,7 @@
     </div>
   </header>
 
-  <main class="main">
+  <main class="main" id="teambuilder-view">
     <section class="search-panel">
       <div class="search-wrap">
         <input type="text" id="search-input" class="search-input" placeholder="Buscar Pokémon..." autocomplete="off" />
@@ -97,6 +95,41 @@
           <textarea id="export-text" class="export-textarea" readonly></textarea>
           <button id="copy-btn" class="copy-btn">Copiar</button>
         </div>
+      </div>
+    </section>
+  </main>
+
+  <main class="main tier-list-view hidden" id="tier-list-view">
+    <section id="tierlist-home">
+      <div class="tierlist-heading"><div><span class="eyebrow">RANKINGS TEMÁTICOS</span><h1>Tier Lists Pokémon</h1><p>Escolha uma lista para começar a rankear.</p></div></div>
+      <div id="tierlist-catalog" class="tierlist-catalog"></div>
+    </section>
+    <section id="tierlist-editor" class="hidden">
+      <div class="tierlist-heading">
+        <div><button class="tierlist-back" id="tierlist-back">← Todas as Tier Lists</button><span class="eyebrow">RANKING TEMÁTICO</span><h1 id="tierlist-title">—</h1><p id="tierlist-subtitle">—</p></div>
+        <button class="action-btn" id="tierlist-reset">↺ Reiniciar</button>
+      </div>
+      <div class="tierlist-instructions">Arraste os Pokémon para os tiers ou clique para avançá-los de tier.</div>
+      <section id="tierlist-board" class="tierlist-board"></section>
+      <section class="tier-selection-section"><div class="tier-selection-heading"><h2>Pokémon para rankear</h2><span id="tierlist-remaining" class="count-badge">0</span></div><p>Os Pokémon que ainda não entraram em nenhum tier ficam aqui embaixo.</p><div id="tierlist-selection" class="tierlist-selection" data-rank="unranked"></div></section>
+    </section>
+  </main>
+
+  <main class="main favorites-view hidden" id="favorites-view">
+    <section class="favorites-heading"><div><span class="eyebrow">COLEÇÃO PESSOAL</span><h1>Favoritos por geração</h1><p>Escolha um Pokémon favorito para cada combinação de geração e tipo.</p></div><button class="action-btn" id="favorites-clear">Limpar favoritos</button></section>
+    <section class="favorites-board-wrap">
+      <div id="favorite-status" class="favorite-status">Abra esta aba para carregar os Pokémon.</div>
+      <div class="favorites-board-scroll"><div id="favorites-board" class="favorites-board"></div></div>
+    </section>
+    <section class="favorites-collection-panel">
+      <div class="favorites-section-heading"><div><span class="eyebrow">OUTRAS CATEGORIAS</span><h2>Seu time e seus favoritos</h2><p>Escolha um Pokémon para cada categoria. Clique numa caixa para escolher ou trocar.</p></div></div>
+      <div class="favorite-team-area"><div class="favorite-subheading"><h3>TIME</h3><span>6 espaços</span></div><div id="favorite-team" class="favorite-team"></div></div>
+      <div class="favorite-category-grid" id="favorite-category-grid"></div>
+      <div id="favorite-picker" class="favorite-picker hidden">
+        <div class="favorite-picker-head"><div><span class="eyebrow" id="favorite-picker-context">ESCOLHER FAVORITO</span><h2 id="favorite-picker-title">Escolha seu Pokémon</h2></div><button class="modal-close" id="favorite-picker-close" aria-label="Fechar">✕</button></div>
+        <div id="favorite-picker-count" class="favorite-picker-count"></div>
+        <div class="favorites-toolbar"><input id="favorite-search" type="search" placeholder="Buscar Pokémon..." autocomplete="off" /><select id="favorite-picker-generation" aria-label="Filtrar geração"><option value="all">Todas as gerações</option></select><select id="favorite-picker-type" aria-label="Filtrar tipo"><option value="all">Todos os tipos</option></select></div>
+        <div id="favorite-grid" class="favorite-grid"></div>
       </div>
     </section>
   </main>
@@ -208,5 +241,7 @@
   <script src="scripts/data.js"></script>
   <script src="scripts/teambuilder.js"></script>
   <script src="scripts/setbuilder.js"></script>
+  <script src="scripts/tierlist.js"></script>
+  <script src="scripts/favorites.js"></script>
 </body>
 </html>
