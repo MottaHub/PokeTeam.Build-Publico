@@ -26,6 +26,50 @@
     psychic:[-1,0,-1,2], bug:[0,0,1,1], rock:[-1,1,-1,-1], ghost:[-1,1,-2,2], dragon:[1,2,0,2],
     dark:[-1,1,-2,1], steel:[-1,1,-1,0], fairy:[1,0,2,1]
   };
+  // Natures are an interpretive label for the quiz profile, not a fixed trait of a species.
+  // The vectors use the quiz's four axes and keep the standard competitive nature names.
+  const NATURE_PROFILES = [
+    ['Hardy',       [ 0, 0, 0, 0]], ['Lonely',     [-1, 1,-2, 0]],
+    ['Brave',       [ 1, 2,-1, 0]], ['Adamant',    [ 1, 2,-1, 0]],
+    ['Naughty',     [ 2, 1, 1, 1]], ['Bold',       [-1,-1, 1,-1]],
+    ['Docile',      [ 0,-1, 1,-1]], ['Relaxed',    [-2,-1,-1,-2]],
+    ['Impish',      [ 0, 1,-1, 0]], ['Lax',        [ 0,-1, 1, 0]],
+    ['Timid',       [-2,-2,-1, 1]], ['Hasty',      [ 2, 0, 0, 2]],
+    ['Serious',     [ 0, 0, 0, 0]], ['Jolly',      [ 2, 1, 2, 2]],
+    ['Naive',       [ 2, 1, 0, 2]], ['Modest',     [-1, 0,-1, 0]],
+    ['Mild',        [-1,-1, 1, 0]], ['Quiet',      [-2,-1,-2,-2]],
+    ['Bashful',     [ 0, 0, 0, 0]], ['Rash',       [ 2, 1,-1, 2]],
+    ['Calm',        [-2,-2, 1,-2]], ['Gentle',     [-1,-1, 2,-1]],
+    ['Sassy',       [-2, 1,-1,-2]], ['Careful',    [-2,-2,-1,-1]],
+    ['Quirky',      [ 0, 0, 1, 1]]
+  ];
+  const NATURE_DESCRIPTIONS = {
+    Hardy:'estável e perseverante; costuma manter a calma e seguir em frente.',
+    Lonely:'independente e introspectivo; valoriza ter espaço para fazer as coisas à sua maneira.',
+    Brave:'corajoso e decidido; encara desafios mesmo quando eles parecem difíceis.',
+    Adamant:'firme nas próprias convicções; quando acredita em algo, dificilmente desiste.',
+    Naughty:'travesso e espontâneo; gosta de agir com liberdade e um toque de ousadia.',
+    Bold:'confiante e destemido; não costuma se intimidar diante de situações novas.',
+    Docile:'dócil e gentil; tende a ser paciente, receptivo e fácil de conviver.',
+    Relaxed:'tranquilo e despreocupado; prefere respeitar o próprio ritmo.',
+    Impish:'brincalhão e levado; gosta de provocar risadas e aprontar de vez em quando.',
+    Lax:'descontraído e flexível; não se prende demais a regras ou pequenas preocupações.',
+    Timid:'reservado e cauteloso; prefere observar e se sentir seguro antes de se arriscar.',
+    Hasty:'agitado e impulsivo; gosta de resolver as coisas rapidamente e seguir adiante.',
+    Serious:'ponderado e focado; costuma levar compromissos e decisões a sério.',
+    Jolly:'alegre e animado; ganha energia ao aproveitar experiências com outras pessoas.',
+    Naive:'curioso e espontâneo; encara novidades com entusiasmo e mente aberta.',
+    Modest:'discreto e humilde; prefere deixar suas atitudes falarem por você.',
+    Mild:'gentil e sensível; procura agir com cuidado e consideração.',
+    Quiet:'calado e contemplativo; sente-se bem com momentos de paz e reflexão.',
+    Bashful:'tímido e reservado; pode demorar um pouco para mostrar seu lado mais aberto.',
+    Rash:'intenso e impulsivo; costuma seguir a empolgação do momento.',
+    Calm:'sereno e equilibrado; tende a lidar com situações sem perder a tranquilidade.',
+    Gentle:'atencioso e cuidadoso; procura tratar as pessoas com delicadeza.',
+    Sassy:'atrevido e confiante; não tem medo de responder à altura ou defender seu espaço.',
+    Careful:'prudente e atento; pensa nas consequências antes de tomar uma decisão.',
+    Quirky:'original e imprevisível; gosta de seguir interesses e ideias pouco convencionais.'
+  };
   const QUESTION_BANK = [
     [
       [-1,'Em uma reunião, prefiro ouvir bastante antes de falar.'],[1,'Uma conversa animada costuma me deixar com mais energia.'],[-1,'Depois de socializar muito, preciso de um tempo só meu.'],[1,'Não tenho dificuldade em começar conversa com gente nova.'],[-1,'Gosto de pensar nas minhas ideias antes de dividi-las.'],[1,'Costumo demonstrar meu entusiasmo sem esconder.'],[-1,'Prefiro encontros pequenos a eventos cheios.'],[1,'Trabalhar ou estudar com outras pessoas me dá ânimo.'],[-1,'Ser o centro das atenções por muito tempo me cansa.'],[1,'Em um grupo, normalmente sou uma das pessoas mais expressivas.'],[-1,'Observar primeiro me ajuda a me sentir à vontade.'],[1,'Gosto de manter contato frequente com meus amigos.'],[-1,'Aprecio atividades tranquilas que posso fazer sozinho.'],[1,'Uma boa novidade é ainda melhor quando posso compartilhá-la.'],[-1,'Prefiro uma conversa profunda a falar com muitas pessoas ao mesmo tempo.']
@@ -198,17 +242,24 @@
     return Math.max(0,Math.min(100,(1-distance/8)*100));
   }
 
+  function natureFor(profile) {
+    return NATURE_PROFILES.map(([name, traits]) => ({
+      name,
+      distance: traits.reduce((sum, value, index) => sum + (value - profile[index]) ** 2, 0)
+    })).sort((a, b) => a.distance - b.distance)[0].name;
+  }
+
   function showResult() {
     const profile=[0,0,0,0], counts=[0,0,0,0];
     questions.forEach((question,index)=>{profile[question.axis]+=answers[index]*question.sign;counts[question.axis]++;});
     profile.forEach((_,axis)=>{profile[axis]/=counts[axis]||1;});
     const ranked=pokemon.map(mon=>({...mon,match:similarity(profile,mon)})).sort((a,b)=>b.match-a.match||a.id-b.id);
-    const winner=ranked[0],winnerProfile=profileFor(winner), axes=AXES.map(([low,high],index)=>`<div class="quiz-result-axis"><div><span>${low}</span><b>${high}</b></div><div class="quiz-result-track"><i style="left:${((profile[index]+2)/4)*100}%"></i></div></div>`).join('');
+    const winner=ranked[0],winnerProfile=profileFor(winner),nature=natureFor(profile), axes=AXES.map(([low,high],index)=>`<div class="quiz-result-axis"><div><span>${low}</span><b>${high}</b></div><div class="quiz-result-track"><i style="left:${((profile[index]+2)/4)*100}%"></i></div></div>`).join('');
     const others=ranked.slice(1,9).map((mon,index)=>`<article class="quiz-match-card"><span class="quiz-match-rank">${String(index+2).padStart(2,'0')}</span><img loading="lazy" src="${image(mon.id)}" alt=""><div class="quiz-match-info"><strong>${escapeHtml(mon.name.replace(/-/g,' '))}</strong><small>${mon.types.join(' · ')}</small><div class="quiz-match-bar"><i style="width:${mon.match}%"></i></div></div><b class="quiz-match-percent">${mon.match.toFixed(1)}%</b></article>`).join('');
     const interpretation=winnerProfile.map((value,index)=>Math.abs(value)>.45?(value<0?AXES[index][0]:AXES[index][1]):null).filter(Boolean).slice(0,2).join(' e ');
     const insight=usingIndividualData?(interpretation?`As descrições da Pokédex e os dados individuais apontam para um perfil ${interpretation.toLowerCase()}.`:'As pistas individuais deste Pokémon ficam próximas do equilíbrio nos quatro eixos do quiz.'):'Os perfis individuais não carregaram; este resultado foi comparado principalmente pelos tipos.';
     const methodology=usingIndividualData?'O quiz interpreta descrições da Pokédex e combina essas pistas com habilidades, atributos e tipos. Os traços não são uma classificação oficial.':'Este resultado usa os tipos como referência porque os dados individuais não ficaram disponíveis.';
-    host.innerHTML=`<div class="quiz-result-layout"><section class="quiz-result-hero"><span class="eyebrow">SEU RESULTADO · ${questions.length} PERGUNTAS</span><div class="quiz-result-main"><div class="quiz-result-mon"><img class="quiz-result-sprite" src="${image(winner.id,true)}" onerror="this.onerror=null;this.src='${image(winner.id)}'" alt="${escapeHtml(winner.name)}"><div class="quiz-result-match"><strong>${winner.match.toFixed(1)}%</strong><span>MAIS COMPATÍVEL</span></div></div><div class="quiz-result-copy"><span class="eyebrow">POKÉMON QUE MAIS COMBINA</span><h2>${escapeHtml(winner.name.replace(/-/g,' '))}</h2><p>${insight}</p><div class="quiz-type-list">${winner.types.map(type=>`<span>${type}</span>`).join('')}</div></div></div></section><section class="quiz-result-profile"><h3>SEU PERFIL</h3><div class="quiz-result-axes">${axes}</div><p>${methodology}</p></section></div><section class="quiz-other-matches"><div class="quiz-other-heading"><div><span class="eyebrow">POKÉMON COM PERFIL PARECIDO</span><h3>Outras combinações próximas</h3></div><span>${pokemon.length.toLocaleString('pt-BR')} Pokémon comparados</span></div><div class="quiz-match-list">${others}</div></section><div class="quiz-controls quiz-result-controls"><button class="action-btn" id="quiz-change-length">← Mudar duração</button><button class="copy-btn" id="quiz-restart">Refazer com ${questions.length} perguntas</button></div>`;
+    host.innerHTML=`<div class="quiz-result-layout"><section class="quiz-result-hero"><span class="eyebrow">SEU RESULTADO · ${questions.length} PERGUNTAS</span><div class="quiz-result-main"><div class="quiz-result-mon"><img class="quiz-result-sprite" src="${image(winner.id,true)}" onerror="this.onerror=null;this.src='${image(winner.id)}'" alt="${escapeHtml(winner.name)}"><div class="quiz-result-match"><strong>${winner.match.toFixed(1)}%</strong><span>MAIS COMPATÍVEL</span></div></div><div class="quiz-result-copy"><span class="eyebrow">POKÉMON QUE MAIS COMBINA</span><h2>${escapeHtml(winner.name.replace(/-/g,' '))}</h2><div class="quiz-nature"><span>Sua Nature</span><strong>${nature}</strong></div><p class="quiz-nature-description">${escapeHtml(NATURE_DESCRIPTIONS[nature])}</p><p>${insight}</p><div class="quiz-type-list">${winner.types.map(type=>`<span>${type}</span>`).join('')}</div></div></div></section><section class="quiz-result-profile"><h3>SEU PERFIL</h3><div class="quiz-result-axes">${axes}</div><p>${methodology}</p><p class="quiz-nature-note">A Nature resume, de forma divertida, os traços de personalidade sugeridos pelas suas respostas. Nos jogos, ela também influencia atributos de batalha.</p></section></div><section class="quiz-other-matches"><div class="quiz-other-heading"><div><span class="eyebrow">POKÉMON COM PERFIL PARECIDO</span><h3>Outras combinações próximas</h3></div><span>${pokemon.length.toLocaleString('pt-BR')} Pokémon comparados</span></div><div class="quiz-match-list">${others}</div></section><div class="quiz-controls quiz-result-controls"><button class="action-btn" id="quiz-change-length">← Mudar duração</button><button class="copy-btn" id="quiz-restart">Refazer com ${questions.length} perguntas</button></div>`;
     document.getElementById('quiz-change-length').addEventListener('click',()=>renderStart());
     document.getElementById('quiz-restart').addEventListener('click',startQuiz);
     host.scrollIntoView({behavior:'smooth',block:'start'});
