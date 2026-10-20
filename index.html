@@ -8,6 +8,13 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="styles/style.css" />
+  <link rel="stylesheet" href="styles/favorites.css" />
+  <link rel="stylesheet" href="styles/tierlist.css" />
+  <link rel="stylesheet" href="styles/home.css" />
+  <link rel="stylesheet" href="styles/teambuilder.css" />
+  <link rel="stylesheet" href="styles/quiz.css" />
+  <link rel="stylesheet" href="styles/setbuilder.css" />
+  <link rel="stylesheet" href="styles/responsive.css" />
 </head>
 <body class="show-home">
   <div class="noise"></div>
@@ -24,6 +31,11 @@
         <a href="#quiz" class="nav-link" data-view="quiz-view">Quiz</a>
         <a href="#" class="nav-link disabled">Meta</a>
       </nav>
+      <div class="site-preferences" aria-label="Preferências do site">
+        <label class="sr-only" for="language-select">Idioma</label>
+        <select id="language-select" aria-label="Idioma"><option value="pt">PT</option><option value="en">EN</option></select>
+        <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Ativar tema claro" title="Ativar tema claro">☼</button>
+      </div>
       <div class="format-selector">
         <label class="format-label">Formato</label>
         <select id="format-select">
@@ -308,6 +320,7 @@
   </footer>
 
   <script src="scripts/data.js"></script>
+  <script src="scripts/i18n.js"></script>
   <script src="scripts/teambuilder.js"></script>
   <script src="scripts/setbuilder.js"></script>
   <script src="scripts/tierlist.js"></script>

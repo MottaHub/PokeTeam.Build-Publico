@@ -15,7 +15,7 @@
       }
     }
   }`;
-  const LIMITS = [12, 30, 60];
+  const LIMITS = [12, 30, 60, 90, 120];
   const AXES = [
     ['Reservado', 'Energético'], ['Cauteloso', 'Corajoso'],
     ['Independente', 'Sociável'], ['Tranquilo', 'Explorador']
@@ -84,22 +84,43 @@
       [1,'Tenho vontade de conhecer lugares que nunca visitei.'],[-1,'Uma rotina conhecida me traz conforto.'],[1,'Gosto de aprender sobre assuntos que não conheço.'],[-1,'Prefiro aperfeiçoar o que já sei a começar algo completamente novo.'],[1,'Quando posso, escolho experimentar um caminho diferente.'],[-1,'Surpresas demais podem atrapalhar meu bem-estar.'],[1,'Tenho curiosidade sobre como as coisas funcionam.'],[-1,'Gosto de manter alguns hábitos mesmo quando minha vida muda.'],[1,'A possibilidade de descobrir algo novo me empolga.'],[-1,'Sinto-me melhor quando sei o que esperar do meu dia.'],[1,'Explorar uma ideia diferente pode ser divertido mesmo sem um objetivo.'],[-1,'Prefiro mudanças graduais a virar tudo de cabeça para baixo.'],[1,'Tenho facilidade para encontrar algo interessante em uma experiência nova.'],[-1,'Às vezes, o conhecido é exatamente o que eu preciso.'],[1,'Se surge uma oportunidade inesperada, fico curioso para saber onde ela vai dar.']
     ]
   ].flatMap((questions,axis) => questions.map(([sign,text]) => ({axis,sign,text})));
+  const EXTRA_QUESTION_BANK = [
+    [
+      [-1,'Em uma festa, prefiro conversar com poucas pessoas de cada vez.'],[1,'Gosto de compartilhar minhas ideias assim que elas surgem.'],[-1,'Um dia cheio de interações costuma me deixar cansado.'],[1,'Sinto facilidade em me enturmar em ambientes novos.'],[-1,'Geralmente observo o grupo antes de participar.'],[1,'Falo com naturalidade mesmo quando há muita gente por perto.'],[-1,'Prefiro passar meu tempo livre em atividades mais reservadas.'],[1,'Conversar com desconhecidos pode ser uma experiência divertida.'],[-1,'Preciso de silêncio para recuperar as energias depois de um evento.'],[1,'Gosto de contar histórias e animar uma conversa.'],[-1,'Prefiro receber poucas pessoas em casa a ir a uma grande festa.'],[1,'Costumo me sentir à vontade para expressar minhas opiniões em grupo.'],[-1,'Tenho mais facilidade para me abrir em conversas individuais.'],[1,'A presença de outras pessoas costuma me motivar.'],[-1,'Aproveito bastante atividades que faço no meu próprio ritmo.']
+    ],
+    [
+      [1,'Se percebo uma injustiça, tenho vontade de me posicionar.'],[-1,'Em uma situação incerta, busco informações antes de escolher.'],[1,'Aceito responsabilidades mesmo quando existe pressão.'],[-1,'Prefiro pedir conselho antes de tomar uma decisão arriscada.'],[1,'Não costumo recuar só porque uma tarefa parece intimidadora.'],[-1,'Analiso os possíveis problemas antes de começar um projeto.'],[1,'Sei defender uma ideia mesmo quando ela é impopular.'],[-1,'Evito me comprometer sem conhecer bem as condições.'],[1,'Gosto de testar meus limites de vez em quando.'],[-1,'Em uma discussão, escolho minhas palavras com cuidado.'],[1,'Confio na minha capacidade de lidar com imprevistos.'],[-1,'Prefiro uma solução segura a uma aposta incerta.'],[1,'Uma oportunidade desafiadora me dá vontade de tentar.'],[-1,'Quando há muito em jogo, valorizo a cautela.'],[1,'Não preciso ter certeza do resultado para dar o primeiro passo.']
+    ],
+    [
+      [-1,'Gosto de decidir como organizar meu trabalho sem muita interferência.'],[1,'Peço a opinião de pessoas próximas antes de uma escolha importante.'],[-1,'Prefiro resolver um problema por conta própria antes de pedir ajuda.'],[1,'Costumo incluir outras pessoas nos planos que me animam.'],[-1,'Valorizo poder seguir meus próprios interesses, mesmo que sejam diferentes.'],[1,'Apoiar alguém é tão importante quanto alcançar meus objetivos.'],[-1,'Sinto-me confortável fazendo atividades sozinho.'],[1,'Gosto de criar momentos em que todos possam participar.'],[-1,'Não preciso estar acompanhado para aproveitar um passeio.'],[1,'Quando tenho uma boa notícia, quero dividi-la com alguém.'],[-1,'Prefiro que cada pessoa cuide de suas próprias responsabilidades.'],[1,'Tento construir soluções que funcionem para todo o grupo.'],[-1,'Em geral, confio primeiro na minha própria avaliação.'],[1,'Manter contato com pessoas queridas é uma prioridade para mim.'],[-1,'Gosto de ter independência para mudar meus planos.']
+    ],
+    [
+      [1,'Uma viagem sem roteiro definido parece empolgante.'],[-1,'Prefiro saber com antecedência como será meu dia.'],[1,'Gosto de experimentar comidas ou atividades que nunca provei.'],[-1,'Repetir uma atividade que já conheço pode ser muito agradável.'],[1,'Tenho vontade de investigar temas só por curiosidade.'],[-1,'Mudanças rápidas na rotina costumam me incomodar.'],[1,'Se encontro um caminho desconhecido, fico tentado a explorá-lo.'],[-1,'Sinto conforto em manter tradições e hábitos familiares.'],[1,'Aprender uma habilidade do zero me parece estimulante.'],[-1,'Prefiro estabilidade a novidades constantes.'],[1,'Gosto de descobrir lugares diferentes na minha própria cidade.'],[-1,'Uma agenda previsível me ajuda a ficar tranquilo.'],[1,'Tenho interesse em ouvir perspectivas bem diferentes da minha.'],[-1,'Prefiro dominar uma atividade conhecida a trocar sempre de interesse.'],[1,'Uma mudança de planos pode abrir espaço para uma boa descoberta.']
+    ]
+  ].flatMap((questions,axis) => questions.map(([sign,text]) => ({axis,sign,text})));
+  QUESTION_BANK.push(...EXTRA_QUESTION_BANK);
 
-  let answers = [], questions = [], questionIndex = 0, selectedLength = 12, pokemon = [], loading = false, usingIndividualData = false;
+  let answers = [], questions = [], questionIndex = 0, selectedLength = 60, pokemon = [], loading = false, usingIndividualData = false;
   const host = document.getElementById('pokemon-quiz');
   const image = (id, artwork = false) => `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${artwork ? 'other/official-artwork/' : ''}${id}.png`;
   const escapeHtml = value => String(value).replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
   const shuffle = list => { const result = [...list]; for (let i=result.length-1;i>0;i--) { const j=Math.floor(Math.random()*(i+1)); [result[i],result[j]]=[result[j],result[i]]; } return result; };
 
   function renderStart(message = '') {
-    host.innerHTML = `<div class="quiz-start"><span class="eyebrow">ESCOLHA O TAMANHO DO QUIZ</span><p>Mais perguntas deixam seu perfil mais detalhado. Você pode voltar e mudar suas respostas.</p><div class="quiz-length-options">${LIMITS.map(length=>`<button class="quiz-length-option ${selectedLength===length?'selected':''}" data-length="${length}"><strong>${length}</strong><span>${length===12?'Rápido':length===30?'Completo':'Detalhado'}</span></button>`).join('')}</div>${message?`<p class="quiz-load-message">${message}</p>`:''}<button class="copy-btn quiz-start-button" id="quiz-start">Começar quiz →</button></div>`;
+    host.innerHTML = `<div class="quiz-start"><span class="eyebrow">ESCOLHA O TAMANHO DO QUIZ</span><p>Mais perguntas deixam seu perfil mais detalhado. Você pode voltar e mudar suas respostas.</p><div class="quiz-length-options">${LIMITS.map(length=>`<button class="quiz-length-option ${selectedLength===length?'selected':''} ${length===60?'quiz-length-recommended':''}" data-length="${length}"><strong>${length}</strong><span>${length===12?'Rápido':length===30?'Completo':length===60?'Recomendado':length===90?'Extenso':'Máximo'}</span></button>`).join('')}</div>${message?`<p class="quiz-load-message">${message}</p>`:''}<button class="copy-btn quiz-start-button" id="quiz-start">Começar quiz →</button></div>`;
     host.querySelectorAll('[data-length]').forEach(button=>button.addEventListener('click',()=>{selectedLength=Number(button.dataset.length);renderStart(message);}));
     document.getElementById('quiz-start').addEventListener('click',startQuiz);
   }
 
   function balancedQuestions(count) {
     const groups = [0,1,2,3].map(axis=>shuffle(QUESTION_BANK.filter(q=>q.axis===axis)));
-    return shuffle(Array.from({length:count},(_,index)=>groups[index%4][Math.floor(index/4)]));
+    const selected = [];
+    while (selected.length < count) {
+      for (const group of groups) {
+        if (selected.length < count && group.length) selected.push(group.pop());
+      }
+    }
+    return shuffle(selected);
   }
 
   const TRAIT_WORDS = [
@@ -250,8 +271,17 @@
   }
 
   function shareMessage(winner, nature, profile) {
-    const traits=profile.map((value,index)=>value>.25?AXES[index][1]:value<-.25?AXES[index][0]:'equilibrado').join(', ');
-    return `Descobri meu Pokémon no Quiz de Personalidade do PokéBuild!\n\n${winner.name.replace(/-/g,' ')} — Nature ${nature}\n${NATURE_DESCRIPTIONS[nature]}\n${winner.match.toFixed(1)}% de compatibilidade\nMeu perfil: ${traits}.\n\nQual Pokémon combina com você? ${window.location.origin}${window.location.pathname}#quiz`;
+    const en = window.pokebuildLanguage?.() === 'en';
+    const pokemonName = winner.name.replace(/-/g,' ').replace(/\b\p{L}/gu,letter=>letter.toUpperCase());
+    const traits=profile.map((value,index)=>value>.25?AXES[index][1]:value<-.25?AXES[index][0]:null).filter(Boolean);
+    const profileSummary = traits.length
+      ? `${en ? 'My profile?' : 'Meu perfil?'} ${traits.map(value=>value.toLocaleLowerCase(en?'en-US':'pt-BR')).join(', ')}! ✨`
+      : en ? 'My profile? Balanced in every aspect! ⚖️' : 'Meu perfil? Equilíbrio em todos os aspectos! ⚖️';
+    const rawDescription = en ? window.pokebuildTranslate(NATURE_DESCRIPTIONS[nature]) : NATURE_DESCRIPTIONS[nature];
+    const description = rawDescription.charAt(0).toLocaleUpperCase(en?'en-US':'pt-BR') + rawDescription.slice(1);
+    return en
+      ? `I found my Pokémon in PokéBuild! 🎃\n\n${pokemonName} — Nature ${nature}\n${description}\n\n${winner.match.toFixed(1)}% compatibility\n${profileSummary}\n\nAnd you, which Pokémon matches your personality?\n${window.location.origin}${window.location.pathname}#quiz`
+      : `Descobri meu Pokémon no PokéBuild! 🎃\n\n${pokemonName} — Nature ${nature}\n${description}\n\n${winner.match.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})}% de compatibilidade\n${profileSummary}\n\nE você, qual Pokémon combina com a sua personalidade?\n${window.location.origin}${window.location.pathname}#quiz`;
   }
 
   function loadShareImage(id, useArtwork = false) {
@@ -262,7 +292,18 @@
     });
   }
 
+  function loadBrandLogo() {
+    return new Promise(resolve=>{
+      const logo = new Image();
+      logo.onload = () => resolve(logo);
+      logo.onerror = () => resolve(null);
+      logo.src = 'assets/pokebuild-logo.png';
+    });
+  }
+
   async function makeShareCard(winner, nature, profile, otherMatches, questionCount) {
+    const tr = value => window.pokebuildTranslate?.(value) || value;
+    const en = window.pokebuildLanguage?.() === 'en';
     const canvas=document.createElement('canvas'); canvas.width=1200; canvas.height=1160;
     const context=canvas.getContext('2d');
     const background=context.createLinearGradient(0,0,1200,1160);
@@ -277,13 +318,15 @@
       context.fillText(text,x,y);
     };
     const titleCase=value=>value.replace(/-/g,' ').replace(/\b\w/g,char=>char.toUpperCase());
-    const [winnerArt,...matchSprites]=await Promise.all([winner,...otherMatches].map(mon=>loadShareImage(mon.id,mon.id===winner.id)));
+    const [winnerArt,...loadedImages]=await Promise.all([loadShareImage(winner.id,true),...otherMatches.map(mon=>loadShareImage(mon.id)),loadBrandLogo()]);
+    const brandLogo = loadedImages.pop();
+    const matchSprites = loadedImages;
 
     panel(36,36,650,438); panel(704,36,460,438); panel(36,494,1128,578);
-    context.textAlign='left';context.fillStyle='#aaa0e8';context.font='700 15px monospace';context.fillText(`SEU RESULTADO · ${questionCount} PERGUNTAS`,64,72);
+    context.textAlign='left';context.fillStyle='#aaa0e8';context.font='700 15px monospace';context.fillText(`${tr('SEU RESULTADO')} · ${questionCount} ${tr('PERGUNTAS')}`,64,72);
     if(winnerArt)context.drawImage(winnerArt,56,103,252,252);
     fitText(titleCase(winner.name),320,155,330,39);
-    context.fillStyle='#b8b0e8';context.font='700 15px monospace';context.fillText(`NATURE ${nature.toUpperCase()}`,322,187);
+    context.fillStyle='#b8b0e8';context.font='700 15px monospace';context.fillText(`${tr('Nature')} ${nature.toUpperCase()}`,322,187);
     context.fillStyle='#c9c5d9';context.font='16px sans-serif';
     const description=NATURE_DESCRIPTIONS[nature];
     const descWords=description.split(' ');let descLine='',descY=270;
@@ -293,7 +336,7 @@
     context.fillStyle='#a5a1b6';context.font='700 13px monospace';context.fillText('DE COMPATIBILIDADE',67,441);
     winner.types.forEach((type,index)=>{context.fillStyle='rgba(170,158,232,.14)';context.beginPath();context.roundRect(320+index*100,207,88,27,13);context.fill();context.fillStyle='#c9c1ff';context.font='13px sans-serif';context.fillText(type.toUpperCase(),331+index*100,225);});
 
-    context.fillStyle='#f5f3ff';context.font='700 20px monospace';context.fillText('SEU PERFIL',732,76);
+    context.fillStyle='#f5f3ff';context.font='700 20px monospace';context.fillText(tr('SEU PERFIL'),732,76);
     AXES.forEach(([low,high],index)=>{
       const y=132+index*78;context.fillStyle='#a5a1b6';context.font='13px sans-serif';context.textAlign='left';context.fillText(low,732,y);
       context.textAlign='right';context.fillStyle='#f5f3ff';context.font='700 13px sans-serif';context.fillText(high,1136,y);
@@ -301,11 +344,11 @@
       context.beginPath();context.roundRect(x,barY,width,7,4);context.fillStyle=gradient;context.fill();
       const markerX=x+((profile[index]+2)/4)*width;context.beginPath();context.arc(markerX,barY+3.5,8,0,Math.PI*2);context.fillStyle='#aaa0e8';context.fill();context.strokeStyle='#211e2f';context.lineWidth=3;context.stroke();
     });
-    context.textAlign='left';context.fillStyle='#a5a1b6';context.font='13px sans-serif';context.fillText('Seu perfil é uma leitura divertida das respostas.',732,440);
+    context.textAlign='left';context.fillStyle='#a5a1b6';context.font='13px sans-serif';context.fillText(tr('Seu perfil é uma leitura divertida das respostas.'),732,440);
 
-    context.fillStyle='#aaa0e8';context.font='700 14px monospace';context.fillText('POKÉMON COM PERFIL PARECIDO',64,531);
-    context.fillStyle='#f5f3ff';context.font='700 21px monospace';context.fillText('Outras combinações próximas',64,561);
-    context.textAlign='right';context.fillStyle='#a5a1b6';context.font='12px monospace';context.fillText(`${pokemon.length.toLocaleString('pt-BR')} COMPARADOS`,1135,559);
+    context.fillStyle='#aaa0e8';context.font='700 14px monospace';context.fillText(tr('POKÉMON COM PERFIL PARECIDO'),64,531);
+    context.fillStyle='#f5f3ff';context.font='700 21px monospace';context.fillText(tr('Outras combinações próximas'),64,561);
+    context.textAlign='right';context.fillStyle='#a5a1b6';context.font='12px monospace';context.fillText(`${pokemon.length.toLocaleString(en?'en-US':'pt-BR')} ${tr('COMPARADOS')}`,1135,559);
     otherMatches.forEach((mon,index)=>{
       const col=index%2,row=Math.floor(index/2),x=62+col*554,y=588+row*112;
       context.strokeStyle='rgba(255,255,255,.1)';context.beginPath();context.moveTo(x,y+99);context.lineTo(x+530,y+99);context.stroke();
@@ -317,7 +360,11 @@
       context.beginPath();context.roundRect(x+108,y+64,390,5,3);context.fillStyle='rgba(255,255,255,.09)';context.fill();
       context.beginPath();context.roundRect(x+108,y+64,390*Math.max(0,Math.min(1,mon.match/100)),5,3);context.fillStyle='#aaa0e8';context.fill();
     });
-    context.textAlign='center';context.fillStyle='#a5a1b6';context.font='12px sans-serif';context.fillText(`Faça seu quiz em ${window.location.host}`,600,1120);
+    if (brandLogo) {
+      const logoWidth = 190, logoHeight = logoWidth * brandLogo.height / brandLogo.width;
+      context.drawImage(brandLogo, 600-logoWidth/2, 1080-logoHeight/2, logoWidth, logoHeight);
+    }
+    context.textAlign='center';context.fillStyle='#a5a1b6';context.font='12px sans-serif';context.fillText(`${window.pokebuildLanguage?.()==='en'?'Take your quiz at':'Faça seu quiz em'} ${window.location.host}`,600,1138);
     return new Promise((resolve,reject)=>canvas.toBlob(blob=>blob?resolve(blob):reject(new Error('Não foi possível gerar a imagem.')),'image/png'));
   }
 
