@@ -107,6 +107,7 @@
   const shuffle = list => { const result = [...list]; for (let i=result.length-1;i>0;i--) { const j=Math.floor(Math.random()*(i+1)); [result[i],result[j]]=[result[j],result[i]]; } return result; };
 
   function renderStart(message = '') {
+    host.classList.add('quiz-start-state');
     host.innerHTML = `<div class="quiz-start"><span class="eyebrow">ESCOLHA O TAMANHO DO QUIZ</span><p>Mais perguntas deixam seu perfil mais detalhado. Você pode voltar e mudar suas respostas.</p><div class="quiz-length-options">${LIMITS.map(length=>`<button class="quiz-length-option ${selectedLength===length?'selected':''} ${length===60?'quiz-length-recommended':''}" data-length="${length}"><strong>${length}</strong><span>${length===12?'Rápido':length===30?'Completo':length===60?'Recomendado':length===90?'Extenso':'Máximo'}</span></button>`).join('')}</div>${message?`<p class="quiz-load-message">${message}</p>`:''}<button class="copy-btn quiz-start-button" id="quiz-start">Começar quiz →</button></div>`;
     host.querySelectorAll('[data-length]').forEach(button=>button.addEventListener('click',()=>{selectedLength=Number(button.dataset.length);renderStart(message);}));
     document.getElementById('quiz-start').addEventListener('click',startQuiz);
@@ -243,6 +244,7 @@
 
   async function startQuiz() {
     if (loading) return;
+    host.classList.remove('quiz-start-state');
     loading=true; host.innerHTML='<div class="quiz-loading"><span class="quiz-spinner"></span><strong>Preparando o quiz</strong><p>Carregando a Pokédex para incluir todos os Pokémon…</p></div>';
     try { pokemon=await loadPokemon(); questions=balancedQuestions(selectedLength); answers=Array(selectedLength).fill(null); questionIndex=0; renderQuestion(); }
     catch { renderStart('Não consegui carregar a Pokédex. Confira sua conexão e tente novamente.'); }
@@ -250,6 +252,7 @@
   }
 
   function renderQuestion() {
+    host.classList.remove('quiz-start-state');
     const q=questions[questionIndex], scaleLabels=['Discordo totalmente','Discordo','Neutro','Concordo','Concordo totalmente'];
     host.innerHTML=`<div class="quiz-progress"><span>PERGUNTA ${String(questionIndex+1).padStart(2,'0')} / ${questions.length}</span><div><i style="width:${((questionIndex+1)/questions.length)*100}%"></i></div></div><article class="quiz-question-card"><span class="eyebrow">${AXES[q.axis][0].toUpperCase()} <b>↔</b> ${AXES[q.axis][1].toUpperCase()}</span><h2>${q.text}</h2><div class="quiz-scale-labels"><span>Discordo</span><span>Concordo</span></div><div class="quiz-scale" role="group" aria-label="Grau de concordância">${[-2,-1,0,1,2].map((value,index)=>`<button class="quiz-scale-option ${answers[questionIndex]===value?'selected':''}" data-answer="${value}" aria-label="${scaleLabels[index]}" title="${scaleLabels[index]}"><span>${index+1}</span></button>`).join('')}</div><div class="quiz-scale-captions"><span>Discordo totalmente</span><span>Concordo totalmente</span></div></article><div class="quiz-controls"><button class="action-btn" id="quiz-prev" ${questionIndex===0?'disabled':''}>← Voltar</button><button class="copy-btn" id="quiz-next" ${answers[questionIndex]===null?'disabled':''}>${questionIndex===questions.length-1?'Ver resultado':'Próxima →'}</button></div>`;
     host.querySelectorAll('[data-answer]').forEach(button=>button.addEventListener('click',()=>{answers[questionIndex]=Number(button.dataset.answer);renderQuestion();}));
@@ -393,6 +396,7 @@
   }
 
   function showResult() {
+    host.classList.remove('quiz-start-state');
     const profile=[0,0,0,0], counts=[0,0,0,0];
     questions.forEach((question,index)=>{profile[question.axis]+=answers[index]*question.sign;counts[question.axis]++;});
     profile.forEach((_,axis)=>{profile[axis]/=counts[axis]||1;});
