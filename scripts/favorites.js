@@ -206,6 +206,103 @@
 
   function closePicker() { document.getElementById('favorite-picker').classList.add('hidden'); document.getElementById('favorite-picker-backdrop').classList.add('hidden'); activeTarget = null; }
 
+  function shareEntries() {
+    const entries = [];
+    GENERATIONS.forEach(([generation],index) => TYPES.forEach(([type,label]) => {
+      const mon = pokemonById(selections[keyFor(index+1,type)]);
+      if (mon) entries.push({id:mon.id,name:mon.displayName,label:generation + ' · ' + label,shiny:Boolean(selections.shiny[keyFor(index+1,type)])});
+    }));
+    selections.team.forEach((id,index) => { const mon=pokemonById(id); if(mon) entries.push({id:mon.id,name:mon.displayName,label:'Time · ' + (index+1)}); });
+    CATEGORIES.forEach(([key,label]) => {
+      if(key==='type' && selections.categories.type){const typeLabel=TYPES.find(([type])=>type===selections.categories.type)?.[1]||selections.categories.type;entries.push({name:typeLabel,label,id:null,typeId:selections.categories.type});return;}
+      const mon=pokemonById(selections.categories[key]); if(mon) entries.push({id:mon.id,name:mon.displayName,label});
+    });
+    Array.from({length:CUSTOM_COUNT},(_,index)=>{const key='custom-'+index,mon=pokemonById(selections.categories[key]);if(mon)entries.push({id:mon.id,name:mon.displayName,label:selections.customNames[index]||'Personalizada '+(index+1)});});
+    GENERATIONS.forEach(([label],index)=>{const mon=pokemonById(selections['favorite-generation-'+(index+1)]);if(mon)entries.push({id:mon.id,name:mon.displayName,label:'Favorito da geração '+label,shiny:Boolean(selections.shiny['favorite-generation-'+(index+1)])});});
+    TYPES.forEach(([type,label])=>{const mon=pokemonById(selections['favorite-type-'+type]);if(mon)entries.push({id:mon.id,name:mon.displayName,label:'Favorito do tipo '+label,shiny:Boolean(selections.shiny['favorite-type-'+type])});});
+    const overall=pokemonById(selections['favorite-overall']);if(overall)entries.push({id:overall.id,name:overall.displayName,label:'Favorito geral',shiny:Boolean(selections.shiny['favorite-overall'])});
+    return entries;
+  }
+
+  function shareSprite(id, shiny=false) {
+    return new Promise(resolve=>{
+      const image=new Image(); image.crossOrigin='anonymous'; image.onload=()=>resolve(image); image.onerror=()=>resolve(null);
+      image.src='https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/'+(shiny?'shiny/':'')+id+'.png';
+    });
+  }
+
+  async function makeFavoritesImage() {
+    const width=1600, margin=44, labelWidth=85, cellWidth=75, cellHeight=68, boardTop=140, boardHeader=68;
+    const categoryCount=CATEGORIES.length+CUSTOM_COUNT, categoryCols=6, categoryRows=Math.ceil(categoryCount/categoryCols);
+    const teamTop=boardTop+boardHeader+10*cellHeight+42, categoryTop=teamTop+146, height=categoryTop+56+categoryRows*91+72;
+    const canvas=document.createElement('canvas'); canvas.width=width; canvas.height=height;
+    const ctx=canvas.getContext('2d'), en=window.pokebuildLanguage?.()==='en', tr=value=>en?(window.pokebuildTranslate?.(value)||value):value;
+    const background=ctx.createLinearGradient(0,0,width,height); background.addColorStop(0,'#252137'); background.addColorStop(1,'#111019'); ctx.fillStyle=background; ctx.fillRect(0,0,width,height);
+    ctx.strokeStyle='rgba(170,158,232,.42)'; ctx.lineWidth=2; ctx.strokeRect(22,22,width-44,height-44);
+    const panel=(x,y,w,h)=>{ctx.beginPath();ctx.roundRect(x,y,w,h,18);ctx.fillStyle='rgba(255,255,255,.035)';ctx.fill();ctx.strokeStyle='rgba(170,158,232,.2)';ctx.lineWidth=1.5;ctx.stroke();};
+    const images=new Map(),requestedSprites=new Set();
+    shareEntries().forEach(entry=>{if(entry.id)requestedSprites.add(entry.id+':'+Boolean(entry.shiny));});
+    Object.keys(selections).filter(key=>/^\d+:/.test(key)||key.startsWith('favorite-')).forEach(key=>{if(selections[key])requestedSprites.add(Number(selections[key])+':'+Boolean(selections.shiny[key]));});
+    selections.team.forEach(id=>{if(id)requestedSprites.add(Number(id)+':false');});
+    Object.values(selections.categories).forEach(id=>{if(id && Number.isFinite(Number(id)))requestedSprites.add(Number(id)+':false');});
+    await Promise.all([...requestedSprites].map(async key=>{const [id,shiny]=key.split(':');images.set(key,await shareSprite(id,shiny==='true'));}));
+    const drawSprite=(id,x,y,size,shiny=false)=>{const sprite=images.get(Number(id)+':'+Boolean(shiny))||images.get(Number(id)+':false');if(sprite)ctx.drawImage(sprite,x,y,size,size);};
+    const fit=(text,x,y,max,size,color='#f5f3ff',weight='700')=>{ctx.fillStyle=color;let font=size;do{ctx.font=`${weight} ${font}px sans-serif`;if(ctx.measureText(text).width<=max||font<=8)break;font-=1;}while(true);ctx.fillText(text,x,y);};
+    ctx.fillStyle='#aaa0e8';ctx.font='700 15px monospace';ctx.fillText(en?'POKÉBUILD · MY FAVORITES':'POKÉBUILD · MEUS FAVORITOS',margin,70);
+    ctx.fillStyle='#f5f3ff';ctx.font='700 35px sans-serif';ctx.fillText(en?'Favorites by generation':'Favoritos por geração',margin,112);
+    const x0=margin,y0=boardTop,totalW=labelWidth+19*cellWidth,totalH=boardHeader+10*cellHeight;
+    panel(x0-8,y0-8,totalW+16,totalH+16);
+    ctx.fillStyle='#aaa0e8';ctx.fillRect(x0,y0,labelWidth,boardHeader);ctx.fillStyle='#f5f3ff';ctx.font='700 11px monospace';ctx.textAlign='center';ctx.fillText(en?'GEN / TYPE':'GER / TIPO',x0+labelWidth/2,y0+boardHeader/2+4);
+    TYPES.forEach(([type,label],index)=>{const x=x0+labelWidth+index*cellWidth,color=TYPE_COLORS[type]||'#6b6684';ctx.fillStyle=color;ctx.fillRect(x,y0,cellWidth-2,boardHeader-2);ctx.fillStyle='#fff';ctx.font='700 9px sans-serif';ctx.fillText(tr(label),x+(cellWidth-2)/2,y0+boardHeader/2+4);});
+    const finalX=x0+labelWidth+18*cellWidth;ctx.fillStyle='#9c6d2b';ctx.fillRect(finalX,y0,cellWidth-2,boardHeader-2);ctx.fillStyle='#fff';ctx.font='22px sans-serif';ctx.fillText('🏆',finalX+(cellWidth-2)/2,y0+42);
+    GENERATIONS.forEach(([generation],row)=>{
+      const y=y0+boardHeader+row*cellHeight;ctx.fillStyle='#282536';ctx.fillRect(x0,y,labelWidth-2,cellHeight-2);ctx.fillStyle='#f5f3ff';ctx.font='700 20px monospace';ctx.fillText(generation,x0+labelWidth/2,y+34);
+      TYPES.forEach(([type],col)=>{const x=x0+labelWidth+col*cellWidth,mon=pokemonById(selections[keyFor(row+1,type)]);ctx.fillStyle=(TYPE_COLORS[type]||'#777')+'55';ctx.fillRect(x,y,cellWidth-2,cellHeight-2);if(mon){drawSprite(mon.id,x+15,y+3,40,Boolean(selections.shiny[keyFor(row+1,type)]));ctx.fillStyle='#100e18';ctx.fillRect(x+1,y+53,cellWidth-4,12);ctx.font='8px sans-serif';ctx.fillStyle='#fff';ctx.fillText(mon.displayName.slice(0,14),x+cellWidth/2,y+62);}});
+      const finalId=selections['favorite-generation-'+(row+1)],favorite=pokemonById(finalId);ctx.fillStyle='rgba(190,139,57,.28)';ctx.fillRect(finalX,y,cellWidth-2,cellHeight-2);if(favorite)drawSprite(favorite.id,finalX+17,y+5,40,Boolean(selections.shiny['favorite-generation-'+(row+1)]));
+    });
+    const bottomY=y0+boardHeader+9*cellHeight;ctx.fillStyle='#9c6d2b';ctx.fillRect(x0,bottomY,labelWidth-2,cellHeight-2);ctx.fillStyle='#fff';ctx.font='21px sans-serif';ctx.fillText('🏆',x0+labelWidth/2,bottomY+37);
+    TYPES.forEach(([type],col)=>{const x=x0+labelWidth+col*cellWidth,mon=pokemonById(selections['favorite-type-'+type]);ctx.fillStyle='rgba(190,139,57,.28)';ctx.fillRect(x,bottomY,cellWidth-2,cellHeight-2);if(mon)drawSprite(mon.id,x+17,bottomY+5,40,Boolean(selections.shiny['favorite-type-'+type]));});
+    ctx.fillStyle='rgba(190,139,57,.38)';ctx.fillRect(finalX,bottomY,cellWidth-2,cellHeight-2);const overall=pokemonById(selections['favorite-overall']);if(overall)drawSprite(overall.id,finalX+17,bottomY+5,40,Boolean(selections.shiny['favorite-overall']));
+    panel(x0-8,teamTop-6,totalW+16,categoryTop-teamTop-18);
+    ctx.textAlign='left';ctx.fillStyle='#aaa0e8';ctx.font='700 14px monospace';ctx.fillText(en?'TEAM':'TIME',x0+8,teamTop+20);
+    const teamCellW=(totalW-16)/6;
+    Array.from({length:6},(_,index)=>{const x=x0+8+index*teamCellW,y=teamTop+32,id=selections.team[index],mon=pokemonById(id);ctx.fillStyle='rgba(255,255,255,.045)';ctx.beginPath();ctx.roundRect(x,y,teamCellW-8,92,10);ctx.fill();ctx.strokeStyle='rgba(170,158,232,.16)';ctx.stroke();if(mon){drawSprite(mon.id,x+(teamCellW-48)/2,y+4,42);ctx.textAlign='center';ctx.font='9px sans-serif';ctx.fillStyle='#f5f3ff';ctx.fillText(mon.displayName.slice(0,16),x+(teamCellW-8)/2,y+82);}else{ctx.textAlign='center';ctx.fillStyle='#716b8b';ctx.font='10px monospace';ctx.fillText(String(index+1),x+(teamCellW-8)/2,y+54);}});
+    ctx.textAlign='left';ctx.fillStyle='#aaa0e8';ctx.font='700 14px monospace';ctx.fillText(en?'OTHER FAVORITES':'OUTRAS CATEGORIAS',x0,categoryTop+24);
+    const categoryList=CATEGORIES.map(([key,label])=>key==='type'?({label,id:null,typeId:selections.categories.type}):({label,id:selections.categories[key]})).concat(Array.from({length:CUSTOM_COUNT},(_,index)=>({label:selections.customNames[index]||'Personalizada '+(index+1),id:selections.categories['custom-'+index]})));
+    const cardW=(totalW-5*(10))/6;
+    categoryList.forEach((entry,index)=>{const col=index%6,row=Math.floor(index/6),x=x0+col*(cardW+10),y=categoryTop+42+row*91;ctx.fillStyle='rgba(255,255,255,.045)';ctx.beginPath();ctx.roundRect(x,y,cardW,82,10);ctx.fill();ctx.strokeStyle='rgba(170,158,232,.16)';ctx.stroke();fit(tr(entry.label),x+8,y+17,cardW-16,9,'#aaa0e8');const mon=pokemonById(entry.id);if(mon){drawSprite(mon.id,x+8,y+21,48);fit(mon.displayName,x+62,y+52,cardW-70,11);}else if(entry.typeId){ctx.fillStyle=TYPE_COLORS[entry.typeId]||'#aaa0e8';ctx.beginPath();ctx.roundRect(x+8,y+30,cardW-16,34,12);ctx.fill();ctx.textAlign='center';ctx.fillStyle='#fff';fit(tr(TYPES.find(([type])=>type===entry.typeId)?.[1]||entry.typeId),x+cardW/2,y+52,cardW-24,12,'#fff');ctx.textAlign='left';}else{ctx.fillStyle='#706a86';ctx.font='10px sans-serif';ctx.fillText(en?'Not selected':'Não escolhido',x+8,y+52);}});
+    ctx.textAlign='center';ctx.fillStyle='#a5a1b6';ctx.font='12px sans-serif';ctx.fillText(`${en?'Make your collection at':'Monte sua coleção em'} ${window.location.host}`,width/2,height-30);
+    return new Promise((resolve,reject)=>canvas.toBlob(blob=>blob?resolve(blob):reject(new Error(en?'Could not create the image.':'Não foi possível gerar a imagem.')),'image/png'));
+  }
+
+  function favoritesShareText() {
+    const en=window.pokebuildLanguage?.()==='en', entries=shareEntries(), names=[...new Set(entries.map(entry=>entry.name.replace(/\b\p{L}/gu,letter=>letter.toUpperCase())))];
+    const sample=names.slice(0,12).join(', ')+(names.length>12?'…':'');
+    const url=window.location.origin+window.location.pathname+'#favoritos';
+    return en?`My Pokémon favorites on PokéBuild!\n\n${entries.length} favorites in my collection${sample?`\n${sample}`:''}\n\nBuild your own collection: ${url}`:`Meus Pokémon favoritos no PokéBuild!\n\n${entries.length} favoritos na minha coleção${sample?`\n${sample}`:''}\n\nMonte sua coleção: ${url}`;
+  }
+
+  async function shareFavorites() {
+    const button=document.getElementById('favorites-share'),original=button.textContent,en=window.pokebuildLanguage?.()==='en';
+    if(!shareEntries().length){button.textContent=en?'Choose some favorites first':'Escolha alguns favoritos primeiro';setTimeout(()=>{if(button.isConnected)button.textContent=original;},2500);return;}
+    button.disabled=true;button.textContent=en?'Preparing image…':'Preparando imagem…';
+    let copyPromise=Promise.resolve(false);
+    try{
+      const text=favoritesShareText();
+      // Some share targets receive the image but ignore the text field. Copy
+      // the caption first so it is ready to paste into the message field.
+      copyPromise=navigator.clipboard?.writeText(text).then(()=>true).catch(()=>false)??Promise.resolve(false);
+      const blob=await makeFavoritesImage(),file=new File([blob],'pokebuild-favoritos.png',{type:'image/png'});
+      if(navigator.share){if(navigator.canShare?.({files:[file]}))await navigator.share({title:en?'My PokéBuild favorites':'Meus favoritos do PokéBuild',text,files:[file]});else await navigator.share({title:en?'My PokéBuild favorites':'Meus favoritos do PokéBuild',text});}
+      else{const link=document.createElement('a');link.href=URL.createObjectURL(blob);link.download=file.name;link.click();setTimeout(()=>URL.revokeObjectURL(link.href),1000);}
+      const copied=await copyPromise;
+      if(copied){button.textContent=en?'Caption copied — paste it with the image':'Legenda copiada — cole junto da imagem';setTimeout(()=>{if(button.isConnected)button.textContent=original;},4500);}
+      else if(!navigator.share){window.prompt(en?'Copy your favorites text:':'Copie o texto dos seus favoritos:',text);button.textContent=en?'Image downloaded':'Imagem baixada';setTimeout(()=>{if(button.isConnected)button.textContent=original;},3500);}
+      else{button.textContent=en?'Image shared — caption may need to be pasted':'Imagem compartilhada — talvez precise colar a legenda';setTimeout(()=>{if(button.isConnected)button.textContent=original;},4500);}
+    }catch(error){if(error.name==='AbortError'){if(await copyPromise){button.textContent=en?'Caption copied — paste it with the image':'Legenda copiada — cole junto da imagem';setTimeout(()=>{if(button.isConnected)button.textContent=original;},4500);}}else{console.error('Falha ao compartilhar favoritos',error);button.textContent=en?'Could not share':'Não foi possível compartilhar';setTimeout(()=>{if(button.isConnected)button.textContent=original;},2500);}}
+    finally{button.disabled=false;}
+  }
+
   async function loadPokemon() {
     if (loading || pokemon.length) return;
     loading = true;
@@ -238,6 +335,7 @@
     document.getElementById('favorite-picker-close').addEventListener('click',closePicker);
     document.getElementById('favorite-picker-backdrop').addEventListener('click',closePicker);
     document.getElementById('favorites-shiny-toggle').addEventListener('click',() => { shinyMode=!shinyMode; renderBoard(); });
+    document.getElementById('favorites-share').addEventListener('click',shareFavorites);
     document.addEventListener('keydown',event => { if (event.key === 'Escape' && activeTarget) closePicker(); });
     document.getElementById('favorites-clear').addEventListener('click',() => {
       const hasChoices = Object.keys(selections).some(key => (/^\d+:/.test(key) || key.startsWith('favorite-')) && selections[key]) || selections.team.some(Boolean) || Object.values(selections.categories).some(Boolean);
