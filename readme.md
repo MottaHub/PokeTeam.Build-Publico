@@ -1,28 +1,35 @@
-# PokeTeam Builder — Backend
+# PokéBuild
 
-## Setup
+PokéBuild é um projeto comunitário para montar times de Pokémon, explorar listas temáticas, guardar favoritos e descobrir qual Pokémon combina com seu perfil.
+
+## Executar localmente
+
+O frontend usa APIs públicas da PokéAPI e pode ser servido localmente com Python:
 
 ```bash
-cd backend
-pip install -r requirements.txt
+python -m http.server 8000
+```
+
+Abra `http://localhost:8000` no navegador.
+
+O backend Flask é opcional e fornece dados de ameaças do meta e sinergias de habilidades. Para iniciá-lo em outro terminal:
+
+```bash
+python -m pip install -r requirements.txt
 python app.py
 ```
 
-O servidor sobe em `http://localhost:5000`.
+O servidor inicia em `http://localhost:5000`. Algumas funções do frontend consultam esse endereço local; APIs externas, como a PokéAPI, continuam sendo usadas diretamente pelo navegador.
 
-## Endpoints
+## Dados e serviços externos
 
-| Endpoint | Descrição |
-|---|---|
-| `GET /api/smogon/<pokemon>/<fmt>` | Proxy para análises do Smogon (resolve CORS) |
-| `GET /api/threats/<fmt>` | Top ameaças do meta por formato |
-| `GET /api/ability-synergy?abilities=levitate,flash-fire` | Imunidades/resistências por habilidade |
-| `GET /api/health` | Status do servidor e cache |
+- [PokéAPI](https://pokeapi.co/) fornece dados e sprites de Pokémon.
+- [Smogon](https://www.smogon.com/) fornece análises competitivas quando disponíveis.
 
-## Formatos suportados
-- `gen9ou` — Gen 9 OU
-- `gen9vgc2025regg` — VGC 2025
-- `gen9uu` — UU
-- `gen9ubers` — Ubers
-- `gen7ou` — SM OU
-- `gen8ou` — SS OU
+Esses serviços e seus conteúdos têm termos e licenças próprios.
+
+## Licença
+
+O código original deste projeto está sob a licença [MIT](LICENSE).
+
+A licença MIT deste repositório não concede direitos sobre Pokémon, seus nomes, personagens, marcas, logotipos, ilustrações ou sprites. Esses materiais pertencem aos respectivos titulares ou provedores e não estão cobertos pela licença do código original. Consulte os termos dos serviços externos antes de reutilizar dados ou arquivos obtidos por meio deles.

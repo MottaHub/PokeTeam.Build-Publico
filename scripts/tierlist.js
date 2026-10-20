@@ -102,6 +102,19 @@
       zone.addEventListener('drop', event => { event.preventDefault(); zone.classList.remove('drag-over'); const id = Number(event.dataTransfer.getData('text/plain')) || draggedId; const beforeId = Number(event.target.closest('[data-pokemon]')?.dataset.pokemon) || null; if (id) move(id, zone.dataset.rank, beforeId); draggedId = null; });
     });
   }
+
+  function activateView(link) {
+    document.querySelectorAll('.nav-link').forEach(item => item.classList.toggle('active', item === link));
+    const viewId = link.dataset.view;
+    const isTierList = viewId === 'tier-list-view';
+    document.body.classList.toggle('show-tier-list', isTierList);
+    document.body.classList.toggle('show-favorites', viewId === 'favorites-view');
+    ['teambuilder-view', 'tier-list-view', 'favorites-view', 'quiz-view'].forEach(id => document.getElementById(id).classList.toggle('hidden', id !== viewId));
+    document.body.classList.toggle('show-quiz', viewId === 'quiz-view');
+    if (isTierList) showCatalog();
+    if (viewId === 'favorites-view') window.openFavorites?.();
+  }
+
   document.addEventListener('DOMContentLoaded', () => {
     renderCatalog();
     document.getElementById('tierlist-back').addEventListener('click', showCatalog);
@@ -111,16 +124,10 @@
     });
     document.querySelectorAll('.nav-link[data-view]').forEach(link => link.addEventListener('click', event => {
       event.preventDefault();
-      document.querySelectorAll('.nav-link').forEach(item => item.classList.remove('active'));
-      link.classList.add('active');
-      const viewId = link.dataset.view;
-      const isTierList = viewId === 'tier-list-view';
-      document.body.classList.toggle('show-tier-list', isTierList);
-      document.body.classList.toggle('show-favorites', viewId === 'favorites-view');
-      ['teambuilder-view', 'tier-list-view', 'favorites-view', 'quiz-view'].forEach(id => document.getElementById(id).classList.toggle('hidden', id !== viewId));
-      document.body.classList.toggle('show-quiz', viewId === 'quiz-view');
-      if (isTierList) showCatalog();
-      if (viewId === 'favorites-view') window.openFavorites?.();
+      history.replaceState(null, '', link.getAttribute('href'));
+      activateView(link);
     }));
+    const initialView = [...document.querySelectorAll('.nav-link[data-view]')].find(link => link.getAttribute('href') === window.location.hash);
+    if (initialView) activateView(initialView);
   });
 })();

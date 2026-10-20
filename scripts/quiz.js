@@ -251,7 +251,7 @@
 
   function shareMessage(winner, nature, profile) {
     const traits=profile.map((value,index)=>value>.25?AXES[index][1]:value<-.25?AXES[index][0]:'equilibrado').join(', ');
-    return `Descobri meu Pokémon no Quiz de Personalidade do PokéBuild!\n\n${winner.name.replace(/-/g,' ')} — Nature ${nature}\n${NATURE_DESCRIPTIONS[nature]}\n${winner.match.toFixed(1)}% de compatibilidade\nMeu perfil: ${traits}.\n\nQual Pokémon combina com você? ${window.location.href.split('#')[0]}`;
+    return `Descobri meu Pokémon no Quiz de Personalidade do PokéBuild!\n\n${winner.name.replace(/-/g,' ')} — Nature ${nature}\n${NATURE_DESCRIPTIONS[nature]}\n${winner.match.toFixed(1)}% de compatibilidade\nMeu perfil: ${traits}.\n\nQual Pokémon combina com você? ${window.location.origin}${window.location.pathname}#quiz`;
   }
 
   function loadShareArtwork(id) {
