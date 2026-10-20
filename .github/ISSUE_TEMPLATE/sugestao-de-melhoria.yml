@@ -1,0 +1,30 @@
+name: Sugestão de melhoria
+description: Compartilhe uma ideia para melhorar o PokéBuild.
+title: "[Sugestão]: "
+labels: ["sugestão"]
+body:
+  - type: markdown
+    attributes:
+      value: Obrigado por ajudar o PokéBuild a melhorar! Descreva a ideia com suas palavras.
+  - type: textarea
+    id: problema
+    attributes:
+      label: O que poderia melhorar?
+      description: Conte o que está faltando ou o que poderia funcionar melhor.
+      placeholder: Ao usar a página de favoritos, eu gostaria de...
+    validations:
+      required: true
+  - type: textarea
+    id: proposta
+    attributes:
+      label: Como você imagina essa melhoria?
+      description: Descreva a solução ou dê um exemplo de como usaria.
+    validations:
+      required: false
+  - type: textarea
+    id: contexto
+    attributes:
+      label: Contexto adicional
+      description: Se ajudar, inclua capturas de tela ou os passos para reproduzir o problema.
+    validations:
+      required: false

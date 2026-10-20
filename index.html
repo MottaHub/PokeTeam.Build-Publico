@@ -3,20 +3,21 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>PokéBuild — Pokémon Team Builder</title>
+  <title>PokéBuild — Monte seu time e descubra seu Pokémon</title>
   <link rel="icon" type="image/png" href="assets/favicon.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="styles/style.css" />
 </head>
-<body>
+<body class="show-home">
   <div class="noise"></div>
 
   <header class="header">
     <div class="header-inner">
-      <a class="logo" href="#teambuilder" aria-label="PokéBuild — início"><img class="logo-image" src="assets/pokebuild-logo.png" alt="PokéBuild" /></a>
+      <a class="logo" href="#inicio" aria-label="PokéBuild — início" data-view="home-view"><img class="logo-image" src="assets/pokebuild-logo.png" alt="PokéBuild" /></a>
       <nav class="nav">
-        <a href="#teambuilder" class="nav-link active has-beta" data-view="teambuilder-view">Teambuilder<span class="nav-beta">BETA</span></a>
+        <a href="#inicio" class="nav-link active" data-view="home-view">Início</a>
+        <a href="#teambuilder" class="nav-link has-beta" data-view="teambuilder-view">Teambuilder<span class="nav-beta">BETA</span></a>
         <a href="#" class="nav-link disabled">Batalha</a>
         <a href="#tier-list" class="nav-link" data-view="tier-list-view">Tier List</a>
         <a href="#favoritos" class="nav-link has-beta" data-view="favorites-view">Favoritos<span class="nav-beta">BETA</span></a>
@@ -37,7 +38,39 @@
     </div>
   </header>
 
-  <main class="main" id="teambuilder-view">
+  <main class="main home-view" id="home-view">
+    <section class="home-hero">
+      <div class="home-hero-copy">
+        <span class="eyebrow">SEU UNIVERSO POKÉMON, DO SEU JEITO</span>
+        <h1>Monte seu time.<br><span>Descubra seu Pokémon.</span></h1>
+        <p>Crie estratégias, organize seus favoritos, monte rankings e descubra qual Pokémon combina com sua personalidade.</p>
+        <div class="home-hero-actions">
+          <a href="#teambuilder" class="home-primary-cta" data-view="teambuilder-view">Montar meu time <span aria-hidden="true">→</span></a>
+          <a href="#quiz" class="home-secondary-cta" data-view="quiz-view">Fazer o quiz</a>
+        </div>
+        <div class="home-proof"><span class="home-proof-mark">✦</span> Uma coleção de ferramentas para quem ama Pokémon</div>
+      </div>
+      <div class="home-hero-art" aria-hidden="true">
+        <div class="home-orbit home-orbit-one"></div><div class="home-orbit home-orbit-two"></div>
+        <div class="home-glow"></div>
+        <img src="assets/pokebuild-home-hero.png" alt="Logo do PokéBuild com Toxicroak" />
+        <span class="home-spark home-spark-one">✦</span><span class="home-spark home-spark-two">✧</span><span class="home-spark home-spark-three">✦</span>
+        <span class="home-art-caption">ESCOLHA · MONTE · DESCUBRA</span>
+      </div>
+    </section>
+    <section class="home-tools" aria-labelledby="home-tools-title">
+      <div class="home-section-heading"><div><span class="eyebrow">EXPLORE O POKÉBUILD</span><h2 id="home-tools-title">O que vamos fazer hoje?</h2></div><p>Escolha uma ferramenta e comece a explorar.</p></div>
+      <div class="home-tool-grid">
+        <a class="home-tool-card home-tool-builder" href="#teambuilder" data-view="teambuilder-view"><span class="home-tool-icon" aria-hidden="true">⌘</span><span class="eyebrow">ESTRATÉGIA</span><h3>Teambuilder</h3><p>Monte seu time e confira cobertura, fraquezas e resistências.</p><span class="home-tool-link">Criar um time <b>↗</b></span></a>
+        <a class="home-tool-card home-tool-tier" href="#tier-list" data-view="tier-list-view"><span class="home-tool-icon" aria-hidden="true">▤</span><span class="eyebrow">SEU RANKING</span><h3>Tier List</h3><p>Organize Pokémon em rankings temáticos e compare suas escolhas.</p><span class="home-tool-link">Ver rankings <b>↗</b></span></a>
+        <a class="home-tool-card home-tool-favorites" href="#favoritos" data-view="favorites-view"><span class="home-tool-icon" aria-hidden="true">♡</span><span class="eyebrow">SUA COLEÇÃO</span><h3>Favoritos</h3><p>Guarde seus favoritos por geração, tipo e outras categorias.</p><span class="home-tool-link">Montar coleção <b>↗</b></span></a>
+        <a class="home-tool-card home-tool-quiz" href="#quiz" data-view="quiz-view"><span class="home-tool-icon" aria-hidden="true">✧</span><span class="eyebrow">PERSONALIDADE</span><h3>Quiz Pokémon</h3><p>Responda às perguntas e descubra qual Pokémon combina com você.</p><span class="home-tool-link">Descobrir meu Pokémon <b>↗</b></span></a>
+      </div>
+    </section>
+    <section class="home-bottom-note"><span class="home-note-icon" aria-hidden="true">◈</span><p><strong>Feito por fãs, para fãs.</strong><br>Um espaço para brincar, experimentar e celebrar o mundo Pokémon.</p><span class="home-note-spark" aria-hidden="true">✦</span></section>
+  </main>
+
+  <main class="main hidden" id="teambuilder-view">
     <section class="search-panel">
       <div class="search-wrap">
         <input type="text" id="search-input" class="search-input" placeholder="Buscar Pokémon..." autocomplete="off" />
@@ -249,6 +282,24 @@
 
   <footer class="site-footer">
     <div class="site-footer-inner">
+      <section class="footer-support" aria-labelledby="footer-support-title">
+        <span class="eyebrow">PROJETO DE FÃ · OPEN SOURCE</span>
+        <h2 id="footer-support-title">Curtiu o PokéBuild?</h2>
+        <p>Explore o código, sugira uma melhoria ou compartilhe o PokéBuild com outro treinador.</p>
+        <div class="footer-support-actions">
+          <a class="copy-btn" href="https://github.com/MottaHub/PokeTeam.Build-Publico" target="_blank" rel="noopener noreferrer">Ver no GitHub ↗</a>
+          <a class="action-btn" href="https://github.com/MottaHub/PokeTeam.Build-Publico/issues/new?template=sugestao-de-melhoria.yml" target="_blank" rel="noopener noreferrer">Sugerir melhoria</a>
+          <button class="action-btn" id="support-share" type="button">↗ Compartilhar projeto</button>
+        </div>
+        <div class="footer-financial">
+          <span class="footer-financial-icon" aria-hidden="true">♡</span>
+          <div class="footer-financial-copy">
+            <strong>Apoie financeiramente</strong>
+            <span>Ajude o PokéBuild a continuar crescendo.</span>
+          </div>
+          <button class="footer-financial-button" type="button" disabled aria-label="Apoio financeiro disponível em breve">Em breve</button>
+        </div>
+      </section>
       <a class="footer-brand" href="#teambuilder">PokéBuild</a>
       <p>Feito por fãs de Pokémon, para fãs de Pokémon.</p>
       <p class="footer-credits">Inspiração para a coleção de favoritos: <a href="https://cajunavenger.github.io/" target="_blank" rel="noopener noreferrer">Cajunavenger’s Pokémon Favorites</a> · Dados e sprites: <a href="https://pokeapi.co/" target="_blank" rel="noopener noreferrer">PokéAPI</a> · Builds competitivas: <a href="https://www.smogon.com/dex/" target="_blank" rel="noopener noreferrer">Smogon Dex</a></p>
@@ -262,5 +313,6 @@
   <script src="scripts/tierlist.js"></script>
   <script src="scripts/favorites.js"></script>
   <script src="scripts/quiz.js"></script>
+  <script src="scripts/support.js"></script>
 </body>
 </html>

@@ -3,7 +3,8 @@
 // =============================================
 
 const POKEAPI   = 'https://pokeapi.co/api/v2';
-const BACKEND   = 'http://localhost:5000/api';  // Flask backend
+const IS_LOCAL_DEV = ['localhost', '127.0.0.1'].includes(window.location.hostname);
+const BACKEND   = IS_LOCAL_DEV ? 'http://localhost:5000/api' : null;  // Flask só no desenvolvimento local
 const SPRITE    = id => `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${id}.png`;
 const SPRITE_HD = id => `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${id}.png`;
 const LS_KEY    = 'poketeam_v2';
@@ -63,6 +64,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 async function checkBackend() {
+  if (!BACKEND) { backendOnline = false; return; }
   try {
     const r = await fetch(`${BACKEND}/health`, { signal: AbortSignal.timeout(1500) });
     backendOnline = r.ok;
@@ -421,7 +423,7 @@ function buildSpeedAnalysis() {
 
 // ─── Busca threats do meta ────────────────────
 async function fetchThreats(fmt) {
-  if (backendOnline) {
+  if (BACKEND && backendOnline) {
     try {
       const r = await fetch(`${BACKEND}/threats/${fmt}`, { signal: AbortSignal.timeout(3000) });
       const d = await r.json();

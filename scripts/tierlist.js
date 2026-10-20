@@ -104,13 +104,25 @@
   }
 
   function activateView(link) {
-    document.querySelectorAll('.nav-link').forEach(item => item.classList.toggle('active', item === link));
     const viewId = link.dataset.view;
     const isTierList = viewId === 'tier-list-view';
+    document.querySelectorAll('.nav-link[data-view]').forEach(item => item.classList.toggle('active', item.dataset.view === viewId));
+    document.body.classList.toggle('show-home', viewId === 'home-view');
     document.body.classList.toggle('show-tier-list', isTierList);
     document.body.classList.toggle('show-favorites', viewId === 'favorites-view');
-    ['teambuilder-view', 'tier-list-view', 'favorites-view', 'quiz-view'].forEach(id => document.getElementById(id).classList.toggle('hidden', id !== viewId));
+    ['home-view', 'teambuilder-view', 'tier-list-view', 'favorites-view', 'quiz-view'].forEach(id => document.getElementById(id).classList.toggle('hidden', id !== viewId));
     document.body.classList.toggle('show-quiz', viewId === 'quiz-view');
+    const view = document.getElementById(viewId);
+    view.classList.remove('view-enter');
+    const animated = new Set([
+      ...view.children,
+      ...view.querySelectorAll('.team-slot, .analysis-card, .stat-card, .tierlist-card, .tier-row, .tier-selection-section, .favorites-board-wrap, .favorites-collection-panel, .favorite-box-card, .quiz-intro, .pokemon-quiz, .quiz-result-layout > *, .quiz-other-matches, .quiz-match-card')
+    ]);
+    [...animated].forEach((element, index) => {
+      element.classList.add('view-animated');
+      element.style.animationDelay = `${Math.min(index * 35, 280)}ms`;
+    });
+    requestAnimationFrame(() => view.classList.add('view-enter'));
     if (isTierList) showCatalog();
     if (viewId === 'favorites-view') window.openFavorites?.();
   }
@@ -122,7 +134,7 @@
       if (!window.confirm('Reiniciar esta tier list e mover todos os Pokémon para Sem rank?')) return;
       delete state[activeList]; render();
     });
-    document.querySelectorAll('.nav-link[data-view]').forEach(link => link.addEventListener('click', event => {
+    document.querySelectorAll('[data-view][href]').forEach(link => link.addEventListener('click', event => {
       event.preventDefault();
       history.replaceState(null, '', link.getAttribute('href'));
       activateView(link);
