@@ -7,11 +7,23 @@
     [722,'Rowlet'],[725,'Litten'],[728,'Popplio'],[810,'Grookey'],[813,'Scorbunny'],[816,'Sobble'],
     [906,'Sprigatito'],[909,'Fuecoco'],[912,'Quaxly']
   ];
+  const LEGENDARY_IDS = [144,145,146,150,243,244,245,249,250,377,378,379,380,381,382,383,384,480,481,482,483,484,485,486,487,488,638,639,640,641,642,643,644,645,646,716,717,718,772,773,785,786,787,788,789,790,791,792,800,888,889,890,891,892,894,895,896,897,898,905,1007,1008,1014,1015,1016,1017,1020,1021,1022,1023,1024];
+  const MYTHICAL_IDS = [151,251,385,386,489,490,491,492,493,494,647,648,649,719,720,721,801,802,807,808,809,893,1025];
+  const ULTRA_BEAST_IDS = [793,794,795,796,797,798,799,803,804,805,806];
+  const TYPE_ENTRIES = [[1,'Normal'],[10,'Fogo'],[11,'Água'],[12,'Grama'],[13,'Elétrico'],[15,'Gelo'],[2,'Lutador'],[14,'Psíquico'],[6,'Pedra'],[3,'Voador'],[18,'Fada'],[7,'Inseto'],[4,'Veneno'],[5,'Terra'],[8,'Fantasma'],[16,'Dragão'],[17,'Noturno'],[9,'Aço']];
+  let pokemonSpecies = null;
+  let pokemonSpeciesRequest = null;
   const CATALOG = {
     starters: { title: 'Melhores Pokémon iniciais', subtitle: 'Os 27 iniciais das nove gerações.', pokemon: STARTERS },
-    eeveelutions: { title: 'Melhor evolução do Eevee', subtitle: 'Compare todas as evoluções do Eevee.', pokemon: [[134,'Vaporeon'],[135,'Jolteon'],[136,'Flareon'],[196,'Espeon'],[197,'Umbreon'],[470,'Leafeon'],[471,'Glaceon'],[700,'Sylveon']] },
+    eeveelutions: { title: 'Melhor evolução do Eevee', subtitle: 'Compare o Eevee e todas as suas evoluções.', pokemon: [[133,'Eevee'],[134,'Vaporeon'],[135,'Jolteon'],[136,'Flareon'],[196,'Espeon'],[197,'Umbreon'],[470,'Leafeon'],[471,'Glaceon'],[700,'Sylveon']] },
     pseudos: { title: 'Melhores pseudo-lendários', subtitle: 'De Dratini a Frigibax: escolha sua linha favorita.', pokemon: [[149,'Dragonite'],[248,'Tyranitar'],[373,'Salamence'],[376,'Metagross'],[445,'Garchomp'],[635,'Hydreigon'],[706,'Goodra'],[784,'Kommo-o'],[887,'Dragapult'],[998,'Baxcalibur']] },
-    pikachu: { title: 'Melhor parceiro do Pikachu', subtitle: 'Uma tier list para os mascotes elétricos da série.', pokemon: [[25,'Pikachu'],[26,'Raichu'],[172,'Pichu'],[181,'Ampharos'],[417,'Pachirisu'],[702,'Dedenne'],[777,'Togedemaru'],[877,'Morpeko'],[1017,'Miraidon']] }
+    pikachu: { title: 'Melhores Pikaclones', subtitle: 'Pikachu, suas formas e seus parceiros elétricos.', pokemon: [[25,'Pikachu'],[26,'Raichu'],[10100,'Raichu de Alola',null,26],[12000,'Mega Raichu X','raichu-mega-x',26],[12001,'Mega Raichu Y','raichu-mega-y',26],[172,'Pichu'],[181,'Ampharos'],[311,'Plusle'],[312,'Minun'],[417,'Pachirisu'],[587,'Emolga'],[702,'Dedenne'],[777,'Togedemaru'],[877,'Morpeko'],[921,'Pawmi'],[922,'Pawmo'],[923,'Pawmot'],[1017,'Miraidon']] },
+    all: { title: 'Todos os Pokémon', subtitle: 'Rankeie os 1.025 Pokémon de todas as gerações.', pokemon: [], count: 1025, remote: true },
+    types: { title: 'Melhores tipos Pokémon', subtitle: 'Rankeie os 18 tipos Pokémon.', pokemon: TYPE_ENTRIES, cardKind: 'type' },
+    legendary: { title: 'Melhores Pokémon lendários', subtitle: 'Rankeie os Pokémon lendários de todas as gerações.', pokemon: [], count: LEGENDARY_IDS.length, remote: true },
+    mythical: { title: 'Melhores Pokémon míticos', subtitle: 'Rankeie os Pokémon míticos de todas as gerações.', pokemon: [], count: MYTHICAL_IDS.length, remote: true },
+    ultraBeasts: { title: 'Melhores Ultra Beasts', subtitle: 'Rankeie as Ultra Beasts conhecidas.', pokemon: [], count: ULTRA_BEAST_IDS.length, remote: true },
+    special: { title: 'Lendários, míticos e Ultra Beasts', subtitle: 'Compare todos os lendários, míticos e Ultra Beasts em uma lista.', pokemon: [], count: new Set([...LEGENDARY_IDS,...MYTHICAL_IDS,...ULTRA_BEAST_IDS]).size, remote: true }
   };
   const STORAGE_KEY = 'poketeam_tierlists_v1';
   let state = readState();
@@ -19,9 +31,42 @@
   let draggedId = null;
   let selectedPokemonId = null;
   let ignoreClickUntil = 0;
+  let selectionSearch = '';
 
   function readState() { try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}; } catch { return {}; } }
   function save() { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+  function formatName(name) { return name.replace(/-/g,' ').replace(/\b\p{L}/gu, letter => letter.toUpperCase()); }
+  async function ensurePokemonSpecies() {
+    if (pokemonSpecies) return pokemonSpecies;
+    if (!pokemonSpeciesRequest) pokemonSpeciesRequest = fetch('https://pokeapi.co/api/v2/pokemon-species?limit=2000')
+      .then(response => { if (!response.ok) throw new Error('Falha ao carregar a Pokédex'); return response.json(); })
+      .then(data => data.results.map(entry => ({ id:Number(entry.url.match(/\/pokemon-species\/(\d+)\/$/)?.[1]), name:formatName(entry.name) })).filter(item => item.id).sort((a,b)=>a.id-b.id))
+      .then(list => { pokemonSpecies = list; return list; })
+      .catch(error => { pokemonSpeciesRequest = null; throw error; });
+    return pokemonSpeciesRequest;
+  }
+  async function loadRemoteCatalog(key) {
+    const species = await ensurePokemonSpecies();
+    const names = new Map(species.map(mon => [mon.id,mon.name]));
+    if (key === 'all') {
+      CATALOG.all.count = species.length;
+      CATALOG.all.subtitle = `Rankeie os ${species.length.toLocaleString('pt-BR')} Pokémon de todas as gerações.`;
+      const count = document.querySelector('.tierlist-card[data-list="all"] small');
+      if (count) count.textContent = `${species.length.toLocaleString('pt-BR')} Pokémon`;
+    }
+    const ids = key === 'all' ? species.map(mon => mon.id)
+      : key === 'legendary' ? LEGENDARY_IDS
+      : key === 'mythical' ? MYTHICAL_IDS
+      : key === 'ultraBeasts' ? ULTRA_BEAST_IDS
+      : [...new Set([...LEGENDARY_IDS,...MYTHICAL_IDS,...ULTRA_BEAST_IDS])];
+    CATALOG[key].pokemon = ids.filter(id => names.has(id)).map(id => [id,names.get(id)]);
+  }
+  function spriteUrl(id) {
+    if (CATALOG[activeList].cardKind === 'type') return `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/types/generation-viii/sword-shield/${id}.png`;
+    const entry = CATALOG[activeList].pokemon.find(item => item[0] === id);
+    if (entry?.[2]) return `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${entry[2]}.png`;
+    return `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${id}.png`;
+  }
   function current() {
     if (!state[activeList]) state[activeList] = { unranked: CATALOG[activeList].pokemon.map(([id]) => id), ranks: Object.fromEntries(RANKS.map(rank => [rank, []])) };
     const data = state[activeList];
@@ -36,15 +81,29 @@
     return data;
   }
   function getName(id) { return CATALOG[activeList].pokemon.find(item => item[0] === id)?.[1] || `Pokémon ${id}`; }
-  function card(id) { const draggable = window.matchMedia('(max-width: 760px), (pointer: coarse)').matches ? 'false' : 'true'; return `<button class="tier-pokemon" draggable="${draggable}" data-pokemon="${id}" title="${getName(id)}"><img loading="lazy" src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${id}.png" alt=""><span>${getName(id)}</span></button>`; }
+  function card(id) { const draggable = window.matchMedia('(max-width: 760px), (pointer: coarse)').matches ? 'false' : 'true'; const entry=CATALOG[activeList].pokemon.find(item=>item[0]===id); const fallbackId=entry?.[3]||id; return `<button class="tier-pokemon ${CATALOG[activeList].cardKind === 'type' ? 'tier-type-card' : ''}" draggable="${draggable}" data-pokemon="${id}" title="${getName(id)}"><img loading="lazy" src="${spriteUrl(id)}" onerror="this.onerror=null;this.src='https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${fallbackId}.png'" alt=""><span>${getName(id)}</span></button>`; }
   function renderCatalog() {
-    document.getElementById('tierlist-catalog').innerHTML = Object.entries(CATALOG).map(([key, list], index) => `<button class="tierlist-card tierlist-card-${index + 1}" data-list="${key}"><span class="tierlist-card-icon">${['✦','♡','◈','⚡'][index]}</span><span class="tierlist-card-label">TIER LIST</span><strong>${list.title}</strong><small>${list.pokemon.length} Pokémon</small><span class="tierlist-card-arrow">→</span></button>`).join('');
-    document.querySelectorAll('.tierlist-card').forEach(button => button.addEventListener('click', () => {
+    document.getElementById('tierlist-catalog').innerHTML = Object.entries(CATALOG).map(([key, list], index) => `<button class="tierlist-card tierlist-card-${index + 1}" data-list="${key}"><span class="tierlist-card-label">TIER LIST</span><strong>${list.title}</strong><small>${list.count ?? list.pokemon.length} Pokémon</small><span class="tierlist-card-arrow">→</span></button>`).join('');
+    document.querySelectorAll('.tierlist-card').forEach(button => button.addEventListener('click', async () => {
       activeList = button.dataset.list;
+      selectionSearch = '';
       document.getElementById('tierlist-home').classList.add('hidden');
       document.getElementById('tierlist-editor').classList.remove('hidden');
-      render();
-      document.getElementById('tierlist-editor').scrollIntoView({ behavior:'smooth', block:'start' });
+      if (CATALOG[activeList].remote && !CATALOG[activeList].pokemon.length) {
+        const targetList = activeList;
+        const list = CATALOG[targetList];
+        document.getElementById('tierlist-title').textContent = list.title;
+        document.getElementById('tierlist-subtitle').textContent = list.subtitle;
+        document.querySelector('.tier-selection-section').classList.toggle('tier-selection-large', targetList === 'all');
+        document.getElementById('tierlist-board').innerHTML = '';
+        document.getElementById('tierlist-remaining').textContent = list.count;
+        document.getElementById('tierlist-search').classList.add('hidden');
+        document.getElementById('tierlist-assignment').classList.add('hidden');
+        document.getElementById('tierlist-selection').innerHTML = '<span class="tierlist-complete">Carregando Pokémon…</span>';
+        document.getElementById('tierlist-editor').scrollIntoView({ behavior:'smooth', block:'start' });
+        try { await loadRemoteCatalog(targetList); if (activeList === targetList && !document.getElementById('tierlist-editor').classList.contains('hidden')) render(); }
+        catch { if (activeList === targetList && !document.getElementById('tierlist-editor').classList.contains('hidden')) document.getElementById('tierlist-selection').innerHTML = '<span class="tierlist-complete">Não foi possível carregar a Pokédex. Volte e tente novamente.</span>'; }
+      } else { render(); document.getElementById('tierlist-editor').scrollIntoView({ behavior:'smooth', block:'start' }); }
     }));
   }
   function showCatalog() {
@@ -57,12 +116,21 @@
     const data = current(), list = CATALOG[activeList];
     document.getElementById('tierlist-title').textContent = list.title;
     document.getElementById('tierlist-subtitle').textContent = list.subtitle;
+    document.querySelector('.tier-selection-section').classList.toggle('tier-selection-large', activeList === 'all');
     const rows = RANKS.map(rank => `<div class="tier-row" data-rank="${rank}"><div class="tier-label tier-${rank.toLowerCase()}">${rank}</div><div class="tier-dropzone" data-rank="${rank}">${data.ranks[rank].map(card).join('')}</div></div>`).join('');
     document.getElementById('tierlist-board').innerHTML = rows;
-    document.getElementById('tierlist-selection').innerHTML = data.unranked.map(card).join('') || '<span class="tierlist-complete">Todos os Pokémon já estão em um tier.</span>';
+    const search = document.getElementById('tierlist-search');
+    search.classList.toggle('hidden', activeList !== 'all');
+    search.value = selectionSearch;
+    search.oninput = () => { selectionSearch = search.value.trim().toLocaleLowerCase(); renderSelection(data); bindPokemonCards(document.getElementById('tierlist-selection')); };
+    renderSelection(data);
     document.getElementById('tierlist-remaining').textContent = data.unranked.length;
     renderAssignment();
     bindBoard(); save();
+  }
+  function renderSelection(data) {
+    const filtered = data.unranked.filter(id => !selectionSearch || getName(id).toLocaleLowerCase().includes(selectionSearch));
+    document.getElementById('tierlist-selection').innerHTML = filtered.map(card).join('') || (data.unranked.length ? '<span class="tierlist-complete">Nenhum Pokémon encontrado.</span>' : '<span class="tierlist-complete">Todos os Pokémon já estão em um tier.</span>');
   }
   function renderAssignment() {
     const box = document.getElementById('tierlist-assignment');
@@ -84,8 +152,8 @@
     selectedPokemonId = null;
     render();
   }
-  function bindBoard() {
-    document.querySelectorAll('#tierlist-editor .tier-pokemon').forEach(item => {
+  function bindPokemonCards(container = document) {
+    container.querySelectorAll('.tier-pokemon').forEach(item => {
       item.addEventListener('dragstart', event => { draggedId = Number(item.dataset.pokemon); ignoreClickUntil = Date.now() + 700; event.dataTransfer.setData('text/plain', String(draggedId)); event.dataTransfer.effectAllowed = 'move'; });
       item.addEventListener('click', () => {
         if (Date.now() < ignoreClickUntil) { draggedId = null; return; }
@@ -96,6 +164,9 @@
         if (selectedPokemonId) document.getElementById('tierlist-assignment').scrollIntoView({ behavior:'smooth', block:'nearest' });
       });
     });
+  }
+  function bindBoard() {
+    bindPokemonCards(document.getElementById('tierlist-editor'));
     document.querySelectorAll('#tierlist-editor .tier-dropzone, #tierlist-selection').forEach(zone => {
       zone.addEventListener('dragover', event => { event.preventDefault(); zone.classList.add('drag-over'); });
       zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));

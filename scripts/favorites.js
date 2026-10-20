@@ -52,9 +52,11 @@
   let selections = loadSaved();
   let activeTarget = null;
   let loading = false;
+  let shinyMode = false;
   selections.team ||= [];
   selections.categories ||= {};
   selections.customNames ||= [];
+  selections.shiny ||= {};
 
   function loadSaved() { try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}; } catch { return {}; } }
   function save() { localStorage.setItem(STORAGE_KEY,JSON.stringify(selections)); }
@@ -62,22 +64,46 @@
   function generationFor(id) { return GENERATIONS.findIndex(([,min,max]) => id >= min && id <= max) + 1; }
   function esc(value) { return String(value).replace(/[&<>"']/g,char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char])); }
   function pokemonById(id) { return pokemon.find(mon => mon.id === Number(id)); }
+  function finalPoolIds(kind,key) {
+    const ids = kind === 'generation' ? TYPES.map(([type]) => selections[keyFor(Number(key),type)]) : kind === 'type' ? GENERATIONS.map((_,i) => selections[keyFor(i+1,key)]) : Object.keys(selections).filter(entry => /^\d+:/.test(entry)).map(entry => selections[entry]);
+    return [...new Set(ids.filter(Boolean).map(Number))];
+  }
 
   function renderBoard() {
     const cells = GENERATIONS.map(([generation],index) => '<div class="favorite-generation-head"><span>' + generation + '</span><small>GEN</small></div>' + TYPES.map(([type,label]) => {
       const key = keyFor(index + 1,type), mon = pokemonById(selections[key]);
-      const contents = mon ? '<img loading="lazy" src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/' + mon.id + '.png" alt=""><span>' + esc(mon.displayName) + '</span><i class="favorite-remove" data-remove="' + key + '" title="Remover">×</i>' : '<span class="empty-mark">＋</span>';
+      const contents = mon ? '<img loading="lazy" src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/' + (selections.shiny[key] ? 'shiny/' : '') + mon.id + '.png" alt=""><span>' + esc(mon.displayName) + '</span><i class="favorite-remove" data-remove="' + key + '" title="Remover">×</i>' : '<span class="empty-mark">＋</span>';
       return '<button class="favorite-cell type-' + type + ' ' + (mon ? 'filled' : '') + '" data-gen="' + (index+1) + '" data-type="' + type + '" title="' + (mon ? 'Trocar ' + esc(mon.displayName) : 'Escolher favorito ' + label + ' da geração ' + generation) + '" aria-label="' + (mon ? esc(mon.displayName) : 'Escolher favorito ' + label + ' da geração ' + generation) + '">' + contents + '</button>';
-    }).join('')).join('');
-    document.getElementById('favorites-board').innerHTML = '<div class="favorites-corner">GERAÇÃO<br>／ TIPO</div>' + TYPES.map(([type,label]) => '<div class="favorite-column-head type-' + type + '" title="' + label + '"><span>✦</span><small>' + label + '</small></div>').join('') + cells;
-    document.querySelectorAll('.favorite-cell').forEach(button => button.addEventListener('click',event => {
+    }).join('') + renderFinalCell('generation',String(index+1),selections['favorite-generation-' + (index+1)])).join('');
+    const typeFinals = TYPES.map(([type]) => renderFinalCell('type',type,selections['favorite-type-' + type])).join('');
+    document.getElementById('favorites-board').innerHTML = '<div class="favorites-corner">GERAÇÃO<br>／ TIPO</div>' + TYPES.map(([type,label]) => '<div class="favorite-column-head type-' + type + '" title="' + label + '"><span>✦</span><small>' + label + '</small></div>').join('') + '<div class="favorite-final-head" title="Favorito da geração">🏆</div>' + cells + '<div class="favorite-generation-head favorite-overall-head"><span>🏆</span><small>GERAL</small></div>' + typeFinals + renderFinalCell('overall','all',selections['favorite-overall']);
+    document.querySelectorAll('.favorite-cell:not(.favorite-final-cell)').forEach(button => button.addEventListener('click',event => {
       const remove = event.target.closest('[data-remove]');
-      if (remove) { delete selections[remove.dataset.remove]; save(); renderBoard(); return; }
+      if (remove) { delete selections[remove.dataset.remove]; delete selections.shiny[remove.dataset.remove]; save(); renderBoard(); return; }
       const gen = Number(button.dataset.gen), type = button.dataset.type;
+      const key = keyFor(gen,type);
+      if (shinyMode && selections[key]) { selections.shiny[key] = !selections.shiny[key]; save(); renderBoard(); return; }
       openPicker({kind:'matrix',key:keyFor(gen,type),gen:gen,type:type});
+    }));
+    document.querySelectorAll('.favorite-final-cell').forEach(button => button.addEventListener('click',event => {
+      const remove = event.target.closest('[data-remove]');
+      if (remove) { delete selections[remove.dataset.remove]; delete selections.shiny[remove.dataset.remove]; save(); renderBoard(); return; }
+      const {finalKind,finalKey} = button.dataset;
+      const key = finalKind === 'generation' ? 'favorite-generation-' + finalKey : finalKind === 'type' ? 'favorite-type-' + finalKey : 'favorite-overall';
+      if (shinyMode && selections[key]) { selections.shiny[key] = !selections.shiny[key]; save(); renderBoard(); return; }
+      openPicker({kind:'final',key,finalKind,finalKey,poolIds:finalPoolIds(finalKind,finalKey)});
     }));
     const count = Object.keys(selections).filter(key => /^\d+:/.test(key)).length;
     document.getElementById('favorite-status').textContent = count + ' favoritos por geração e tipo';
+    const shinyButton = document.getElementById('favorites-shiny-toggle');
+    shinyButton.classList.toggle('active',shinyMode); shinyButton.setAttribute('aria-pressed',String(shinyMode));
+  }
+
+  function renderFinalCell(kind,key,id) {
+    const storageKey = kind === 'generation' ? 'favorite-generation-' + key : kind === 'type' ? 'favorite-type-' + key : 'favorite-overall';
+    const mon = finalPoolIds(kind,key).includes(Number(id)) ? pokemonById(id) : null, label = kind === 'generation' ? 'Favorito da geração ' + GENERATIONS[Number(key)-1][0] : kind === 'type' ? 'Favorito do tipo ' + (TYPES.find(([type]) => type === key)?.[1] || key) : 'Favorito geral';
+    const contents = mon ? '<img loading="lazy" src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/' + (selections.shiny[storageKey] ? 'shiny/' : '') + mon.id + '.png" alt=""><span>' + esc(mon.displayName) + '</span><i class="favorite-remove" data-remove="' + storageKey + '" title="Remover">×</i>' : '<span class="empty-mark">＋</span>';
+    return '<button class="favorite-cell favorite-final-cell ' + (mon ? 'filled' : '') + '" data-final-kind="' + kind + '" data-final-key="' + key + '" title="' + label + '">' + contents + '</button>';
   }
 
   function renderBox(title,kind,key,id,index) {
@@ -117,21 +143,24 @@
     let context = 'ESCOLHER POKÉMON';
     if (target.kind === 'matrix') context = 'GERAÇÃO ' + GENERATIONS[target.gen-1][0] + ' · ' + TYPES.find(([id]) => id === target.type)[1].toUpperCase();
     else if (target.kind === 'team') context = 'TIME · SLOT ' + (Number(target.key)+1);
+    else if (target.kind === 'final') context = target.finalKind === 'generation' ? 'FAVORITO DA GERAÇÃO ' + GENERATIONS[Number(target.finalKey)-1][0] : target.finalKind === 'type' ? 'FAVORITO DO TIPO ' + TYPES.find(([id]) => id === target.finalKey)?.[1].toUpperCase() : 'FAVORITO GERAL';
     else context = (CATEGORIES.find(([id]) => id === target.key)?.[1] || selections.customNames[Number(target.key.split('-')[1])] || 'CATEGORIA PERSONALIZADA').toUpperCase();
     document.getElementById('favorite-picker-context').textContent = context;
     const selectingType = target.kind === 'category' && target.key === 'type';
     document.getElementById('favorite-picker-title').textContent = selectingType ? 'Escolha seu tipo' : 'Escolha seu Pokémon';
     document.querySelector('.favorites-toolbar').classList.toggle('hidden',selectingType);
+    document.getElementById('favorite-picker-generation').classList.toggle('hidden',target.kind === 'final' || selectingType);
+    document.getElementById('favorite-picker-type').classList.toggle('hidden',target.kind === 'final' || selectingType);
     document.getElementById('favorite-search').value = '';
     const genFilter = document.getElementById('favorite-picker-generation');
     const typeFilter = document.getElementById('favorite-picker-type');
     genFilter.value = target.gen ? String(target.gen) : 'all';
     typeFilter.value = target.type || 'all';
-    genFilter.disabled = target.kind === 'matrix';
-    typeFilter.disabled = target.kind === 'matrix';
+    genFilter.disabled = target.kind === 'matrix' || target.kind === 'final';
+    typeFilter.disabled = target.kind === 'matrix' || target.kind === 'final';
+    document.getElementById('favorite-picker-backdrop').classList.remove('hidden');
     document.getElementById('favorite-picker').classList.remove('hidden');
     renderPicker();
-    document.getElementById('favorite-picker').scrollIntoView({behavior:'smooth',block:'nearest'});
     document.getElementById('favorite-search').focus({preventScroll:true});
   }
 
@@ -152,28 +181,30 @@
     const typeFilter = document.getElementById('favorite-picker-type').value;
     const gen = activeTarget.gen || (generationFilter === 'all' ? 0 : Number(generationFilter));
     const type = activeTarget.type || typeFilter;
-    const allowedIds = activeTarget.kind === 'category' ? CATEGORY_POOLS[activeTarget.key] : null;
+    const allowedIds = activeTarget.kind === 'final' ? activeTarget.poolIds : activeTarget.kind === 'category' ? CATEGORY_POOLS[activeTarget.key] : null;
     const baseIdsByName = new Map(pokemon.filter(mon => mon.id <= 1025).map(mon => [mon.name,mon.id]));
     const suffix = activeTarget.kind === 'category' ? FORM_SUFFIXES[activeTarget.key] : null;
     const list = pokemon.filter(mon => {
       const baseName = suffix && mon.name.match(suffix) ? mon.name.replace(suffix,'') : '';
-      const inCategory = !allowedIds || allowedIds.includes(mon.id) || (baseName && allowedIds.includes(baseIdsByName.get(baseName)));
+      const inCategory = !allowedIds || allowedIds.includes(mon.id) || (activeTarget.kind !== 'final' && baseName && allowedIds.includes(baseIdsByName.get(baseName)));
       return inCategory && (!gen || generationFor(mon.id) === gen) && (!query || mon.name.includes(query)) && (type === 'all' || mon.types.includes(type));
     });
     const count = document.getElementById('favorite-picker-count');
-    count.textContent = allowedIds ? list.length + ' opções desta categoria' : list.length + ' Pokémon disponíveis';
+    count.textContent = activeTarget.kind === 'final' ? list.length + ' favoritos escolhidos disponíveis' : allowedIds ? list.length + ' opções desta categoria' : list.length + ' Pokémon disponíveis';
     const grid = document.getElementById('favorite-grid');
     grid.innerHTML = list.map(mon => '<button class="favorite-pokemon" data-id="' + mon.id + '" title="' + esc(mon.displayName) + '"><span class="favorite-pokemon-sprite"><img loading="lazy" src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/' + mon.id + '.png" alt=""></span><span>' + esc(mon.displayName) + '</span></button>').join('') || '<p class="favorite-empty">Nenhum Pokémon encontrado com esses filtros.</p>';
     grid.querySelectorAll('[data-id]').forEach(button => button.addEventListener('click',() => {
       const id = Number(button.dataset.id);
       if (activeTarget.kind === 'matrix') selections[activeTarget.key] = id;
       else if (activeTarget.kind === 'team') selections.team[Number(activeTarget.key)] = id;
+      else if (activeTarget.kind === 'final') selections[activeTarget.key] = id;
       else selections.categories[activeTarget.key] = id;
+      if (shinyMode) selections.shiny[activeTarget.key] = true;
       save(); closePicker(); renderBoard(); renderCollection();
     }));
   }
 
-  function closePicker() { document.getElementById('favorite-picker').classList.add('hidden'); activeTarget = null; }
+  function closePicker() { document.getElementById('favorite-picker').classList.add('hidden'); document.getElementById('favorite-picker-backdrop').classList.add('hidden'); activeTarget = null; }
 
   async function loadPokemon() {
     if (loading || pokemon.length) return;
@@ -205,10 +236,13 @@
     document.getElementById('favorite-picker-generation').addEventListener('change',renderPicker);
     document.getElementById('favorite-picker-type').addEventListener('change',renderPicker);
     document.getElementById('favorite-picker-close').addEventListener('click',closePicker);
+    document.getElementById('favorite-picker-backdrop').addEventListener('click',closePicker);
+    document.getElementById('favorites-shiny-toggle').addEventListener('click',() => { shinyMode=!shinyMode; renderBoard(); });
+    document.addEventListener('keydown',event => { if (event.key === 'Escape' && activeTarget) closePicker(); });
     document.getElementById('favorites-clear').addEventListener('click',() => {
-      const hasChoices = Object.keys(selections).some(key => /^\d+:/.test(key) && selections[key]) || selections.team.some(Boolean) || Object.values(selections.categories).some(Boolean);
+      const hasChoices = Object.keys(selections).some(key => (/^\d+:/.test(key) || key.startsWith('favorite-')) && selections[key]) || selections.team.some(Boolean) || Object.values(selections.categories).some(Boolean);
       if (!hasChoices || !window.confirm('Apagar todos os favoritos salvos?')) return;
-      selections = {team:[],categories:{},customNames:[]}; save(); closePicker(); renderBoard(); renderCollection();
+      selections = {team:[],categories:{},customNames:[],shiny:{}}; save(); closePicker(); renderBoard(); renderCollection();
     });
     renderBoard(); renderCollection();
   });

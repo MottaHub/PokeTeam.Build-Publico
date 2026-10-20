@@ -158,7 +158,7 @@
       </div>
       <div class="tierlist-instructions">No computador, arraste os Pokémon. No celular, toque em um Pokémon da seleção e escolha o tier.</div>
       <section id="tierlist-board" class="tierlist-board"></section>
-      <section class="tier-selection-section"><div class="tier-selection-heading"><h2>Pokémon para rankear</h2><span id="tierlist-remaining" class="count-badge">0</span></div><p>Toque em um Pokémon para escolher o tier ou arraste-o para uma linha.</p><div id="tierlist-selection" class="tierlist-selection" data-rank="unranked"></div><div id="tierlist-assignment" class="tierlist-assignment hidden"></div></section>
+      <section class="tier-selection-section"><div class="tier-selection-heading"><h2>Pokémon para rankear</h2><span id="tierlist-remaining" class="count-badge">0</span></div><p>Toque em um Pokémon para escolher o tier ou arraste-o para uma linha.</p><input id="tierlist-search" class="tierlist-search hidden" type="search" placeholder="Buscar Pokémon para rankear…" autocomplete="off"><div id="tierlist-selection" class="tierlist-selection" data-rank="unranked"></div><div id="tierlist-assignment" class="tierlist-assignment hidden"></div></section>
     </section>
   </main>
 
@@ -166,18 +166,20 @@
     <section class="favorites-heading"><div><span class="eyebrow">COLEÇÃO PESSOAL</span><h1>Favoritos por geração</h1><p>Escolha um Pokémon favorito para cada combinação de geração e tipo.</p></div><button class="action-btn" id="favorites-clear">Limpar favoritos</button></section>
     <section class="favorites-board-wrap">
       <div id="favorite-status" class="favorite-status">Abra esta aba para carregar os Pokémon.</div>
+      <div class="favorites-board-tools"><button id="favorites-shiny-toggle" type="button" aria-pressed="false">✧ Modo shiny</button></div>
       <div class="favorites-board-scroll"><div id="favorites-board" class="favorites-board"></div></div>
-    </section>
-    <section class="favorites-collection-panel">
-      <div class="favorites-section-heading"><div><span class="eyebrow">OUTRAS CATEGORIAS</span><h2>Seu time e seus favoritos</h2><p>Escolha um Pokémon para cada categoria. Clique numa caixa para escolher ou trocar.</p></div></div>
-      <div class="favorite-team-area"><div class="favorite-subheading"><h3>TIME</h3><span>6 espaços</span></div><div id="favorite-team" class="favorite-team"></div></div>
-      <div class="favorite-category-grid" id="favorite-category-grid"></div>
-      <div id="favorite-picker" class="favorite-picker hidden">
+      <div id="favorite-picker-backdrop" class="favorite-picker-backdrop hidden"></div>
+      <div id="favorite-picker" class="favorite-picker hidden" role="dialog" aria-modal="true" aria-labelledby="favorite-picker-title">
         <div class="favorite-picker-head"><div><span class="eyebrow" id="favorite-picker-context">ESCOLHER FAVORITO</span><h2 id="favorite-picker-title">Escolha seu Pokémon</h2></div><button class="modal-close" id="favorite-picker-close" aria-label="Fechar">✕</button></div>
         <div id="favorite-picker-count" class="favorite-picker-count"></div>
         <div class="favorites-toolbar"><input id="favorite-search" type="search" placeholder="Buscar Pokémon..." autocomplete="off" /><select id="favorite-picker-generation" aria-label="Filtrar geração"><option value="all">Todas as gerações</option></select><select id="favorite-picker-type" aria-label="Filtrar tipo"><option value="all">Todos os tipos</option></select></div>
         <div id="favorite-grid" class="favorite-grid"></div>
       </div>
+    </section>
+    <section class="favorites-collection-panel">
+      <div class="favorites-section-heading"><div><span class="eyebrow">OUTRAS CATEGORIAS</span><h2>Seu time e seus favoritos</h2><p>Escolha um Pokémon para cada categoria. Clique numa caixa para escolher ou trocar.</p></div></div>
+      <div class="favorite-team-area"><div class="favorite-subheading"><h3>TIME</h3><span>6 espaços</span></div><div id="favorite-team" class="favorite-team"></div></div>
+      <div class="favorite-category-grid" id="favorite-category-grid"></div>
     </section>
   </main>
 
