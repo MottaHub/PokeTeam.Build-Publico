@@ -90,6 +90,9 @@ body {
 
 .logo-image { display:block; width:190px; max-height:56px; object-fit:contain; }
 .logo:hover .logo-image { filter:drop-shadow(0 0 10px rgba(170,158,232,.26)); }
+.logo-image.logo-spin { animation:logo-spin .8s cubic-bezier(.2,.75,.25,1); }
+@keyframes logo-spin { to { transform:rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .logo-image.logo-spin { animation:none; } }
 
 .logo-icon {
   font-size: 20px;

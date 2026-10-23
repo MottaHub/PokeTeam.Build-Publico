@@ -200,6 +200,29 @@
 
   document.addEventListener('DOMContentLoaded', () => {
     renderCatalog();
+    const logo = document.querySelector('.logo-image');
+    let mascotClicks = 0;
+    let lastMascotClick = 0;
+    if (logo) {
+      logo.addEventListener('click', event => {
+        const bounds = logo.getBoundingClientRect();
+        // The Toxicroak artwork occupies the left side of the combined logo image.
+        if (event.clientX > bounds.left + bounds.width * 0.3) {
+          mascotClicks = 0;
+          return;
+        }
+        const now = Date.now();
+        mascotClicks = now - lastMascotClick <= 1500 ? mascotClicks + 1 : 1;
+        lastMascotClick = now;
+        if (mascotClicks === 3) {
+          mascotClicks = 0;
+          logo.classList.remove('logo-spin');
+          void logo.offsetWidth;
+          logo.classList.add('logo-spin');
+          window.setTimeout(() => logo.classList.remove('logo-spin'), 850);
+        }
+      });
+    }
     document.getElementById('tierlist-back').addEventListener('click', showCatalog);
     document.getElementById('tierlist-reset').addEventListener('click', () => {
       if (!window.confirm('Reiniciar esta tier list e mover todos os Pokémon para Sem rank?')) return;
